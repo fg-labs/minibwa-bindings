@@ -1,0 +1,13 @@
+/target
+minibwa-py/target/
+# Internal design/process docs — not shipped in the public repo
+docs/superpowers/
+**/*.rs.bk
+.DS_Store
+__pycache__/
+*.pyc
+.pytest_cache/
+# Python build artifacts (the maturin-built extension; the source stays tracked)
+.pixi/
+*.abi3.so
+minibwa-py/python/minibwa/*.so

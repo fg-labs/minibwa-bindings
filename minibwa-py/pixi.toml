@@ -1,0 +1,21 @@
+[workspace]
+name = "minibwa-py"
+channels = ["conda-forge"]
+platforms = ["osx-arm64", "linux-64", "linux-aarch64"]
+
+[dependencies]
+python = ">=3.9,<3.14"
+pip = "*"
+maturin = ">=1.5,<2.0"
+pytest = "*"
+ruff = "*"
+mypy = "*"
+
+[tasks]
+develop      = { cmd = "maturin develop --release", description = "Build & install the extension into this env" }
+build        = { cmd = "maturin build --release",   description = "Build a wheel into target/wheels" }
+test         = { cmd = "python -m pytest -q",                 depends-on = ["develop"], description = "Run pytest after rebuilding" }
+format       = { cmd = "ruff format",               description = "Format Python source with ruff" }
+format-check = { cmd = "ruff format --check",       description = "Check formatting without modifying files" }
+lint         = { cmd = "ruff check",                description = "Lint Python source with ruff" }
+typecheck    = { cmd = "mypy python tests",         description = "Type-check with mypy" }

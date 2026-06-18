@@ -1,0 +1,12 @@
+[workspace]
+# Path of the git-cliff configuration for changelog generation.
+changelog_config = "cliff.toml"
+# Update dependencies with `cargo update` during release prep.
+dependencies_update = true
+# Labels applied to the release PR.
+pr_labels = ["release"]
+# Git releases are created by the publish workflow after crates publish
+# succeed; release-plz itself does not create tags.
+git_release_enable = false
+# Enable once a stable baseline is published.
+semver_check = false

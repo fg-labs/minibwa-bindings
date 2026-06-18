@@ -1,0 +1,10 @@
+# CodeRabbit configuration.
+# https://docs.coderabbit.ai/getting-started/configure-coderabbit
+#
+# The vendored minibwa C tree is a verbatim upstream mirror (see THIRD-PARTY.md
+# and scripts/refresh-minibwa.sh). Fixes belong upstream in lh3/minibwa, not in
+# the local copy — a local patch would be reverted by the next refresh. Exclude
+# it from review so every pass doesn't re-flag third-party code we don't own.
+reviews:
+  path_filters:
+    - "!minibwa-sys/vendor/**"

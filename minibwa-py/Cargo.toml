@@ -1,0 +1,16 @@
+[package]
+name = "minibwa-py"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+authors = ["Nils Homer <nils@fulcrumgenomics.com>"]
+repository = "https://github.com/fg-labs/minibwa-bindings"
+publish = false
+
+[lib]
+name = "_minibwa"
+crate-type = ["cdylib"]
+
+[dependencies]
+minibwa = { path = "../minibwa" }
+pyo3 = { version = "0.22", features = ["extension-module", "abi3-py39"] }

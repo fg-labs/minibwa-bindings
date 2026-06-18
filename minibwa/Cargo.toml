@@ -1,0 +1,27 @@
+[package]
+name = "minibwa"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+publish = false
+description = "Safe Rust bindings for minibwa"
+keywords = ["bioinformatics", "bwa", "alignment", "genomics", "ngs"]
+categories = ["science", "api-bindings"]
+documentation = "https://docs.rs/minibwa"
+
+[lib]
+name = "minibwa"
+path = "src/lib.rs"
+
+[features]
+test-util = []
+
+[dependencies]
+minibwa-sys = { version = "0.1.0", path = "../minibwa-sys" }
+libc = "0.2"
+thiserror = "1"
+
+[dev-dependencies]
+minibwa = { path = ".", features = ["test-util"] }

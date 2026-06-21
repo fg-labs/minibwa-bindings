@@ -53,8 +53,11 @@ jobs:
           working-directory: minibwa-py
           target: ${{ matrix.target }}
           args: --release --out dist
-          # manylinux_2_28 container ships zlib-devel; no before-script-linux
-          # needed for our zlib link dependency (pure C, no libc++/stdc++).
+          # minibwa-sys runs bindgen at build time, which needs libclang. The
+          # manylinux_2_28 image (AlmaLinux 8) ships zlib-devel but neither clang
+          # nor libclang, so install it in the container before building. Ignored
+          # on macOS, where clang/libclang are present natively.
+          before-script-linux: dnf install -y clang
           manylinux: ${{ matrix.manylinux || 'auto' }}
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:

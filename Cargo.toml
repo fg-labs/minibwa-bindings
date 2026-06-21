@@ -9,7 +9,6 @@ license = "MIT"
 authors = ["Nils Homer <nils@fulcrumgenomics.com>"]
 repository = "https://github.com/fg-labs/minibwa-bindings"
 rust-version = "1.75"
-publish = false
 
 [workspace.lints.clippy]
 all = "warn"

@@ -5,7 +5,6 @@ edition.workspace = true
 license.workspace = true
 authors.workspace = true
 repository.workspace = true
-publish = false
 description = "Safe Rust bindings for minibwa"
 keywords = ["bioinformatics", "bwa", "alignment", "genomics", "ngs"]
 categories = ["science", "api-bindings"]

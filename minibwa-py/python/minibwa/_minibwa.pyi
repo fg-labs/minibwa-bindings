@@ -94,6 +94,11 @@ class Hit:
         """Return '+' for forward-strand or '-' for reverse."""
         ...
 
+    @property
+    def cigar_string(self) -> str:
+        """Return the CIGAR as a SAM-style string (e.g. '150M'), or '*' if empty."""
+        ...
+
     def __repr__(self) -> str: ...
 
 def map(  # noqa: A001

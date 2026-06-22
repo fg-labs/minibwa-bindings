@@ -220,6 +220,8 @@ impl PyOpts {
 ///     is_supplementary (bool): ``True`` for supplementary alignments.
 ///     cigar (list[tuple[str, int]]): CIGAR operations as (op_char, length)
 ///                          pairs, e.g. ``[('M', 150)]``.
+///     cigar_string (str):  CIGAR as a SAM-style string, e.g. ``"150M"``
+///                          (``"*"`` if empty).
 #[pyclass(name = "Hit")]
 struct PyHit {
     #[pyo3(get)]
@@ -262,6 +264,17 @@ impl PyHit {
     #[getter]
     fn strand(&self) -> &'static str {
         if self.reverse { "-" } else { "+" }
+    }
+
+    /// Return the CIGAR as a SAM-style string, e.g. ``"100M5I45M"``.
+    ///
+    /// Returns ``"*"`` when the CIGAR is empty (unmapped).
+    #[getter]
+    fn cigar_string(&self) -> String {
+        if self.cigar.is_empty() {
+            return "*".to_owned();
+        }
+        self.cigar.iter().map(|(op, len)| format!("{len}{op}")).collect()
     }
 
     fn __repr__(&self) -> String {

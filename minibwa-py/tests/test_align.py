@@ -164,6 +164,10 @@ def test_hit_strand_and_fields() -> None:
         assert not h.is_secondary
         assert not h.is_supplementary
 
+        # cigar_string mirrors the cigar tuples as a SAM-style string.
+        assert h.cigar_string == "".join(f"{n}{op}" for op, n in h.cigar)
+        assert h.cigar_string != "*"
+
 
 def test_error_paths() -> None:
     ref = _synthetic_reference(5000)

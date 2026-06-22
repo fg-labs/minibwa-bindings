@@ -164,7 +164,10 @@ def test_hit_strand_and_fields() -> None:
         assert not h.is_secondary
         assert not h.is_supplementary
 
-        # cigar_string mirrors the cigar tuples as a SAM-style string.
+        # cigar_string mirrors the cigar tuples as a SAM-style string. The
+        # empty-CIGAR "*" branch isn't reachable from Python (unmapped reads
+        # come back as an empty list, never a Hit); the Rust crate covers it
+        # directly (hit.rs::cigar_string_empty_is_star).
         assert h.cigar_string == "".join(f"{n}{op}" for op, n in h.cigar)
         assert h.cigar_string != "*"
 

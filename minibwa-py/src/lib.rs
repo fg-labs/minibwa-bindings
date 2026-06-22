@@ -6,6 +6,7 @@
 use minibwa::{Aligner, Index as RsIndex, Meth, Opts as RsOpts, ThreadBuf};
 use pyo3::exceptions::{PyRuntimeError, PyValueError};
 use pyo3::prelude::*;
+use std::path::PathBuf;
 use std::sync::Arc;
 
 fn map_err(e: minibwa::Error) -> PyErr {
@@ -35,8 +36,10 @@ impl PyIndex {
     /// Writes ``<prefix>.mbw`` and ``<prefix>.l2b`` to disk.
     ///
     /// Args:
-    ///     fasta:   Path to the reference FASTA (may be gzipped).
-    ///     prefix:  Output file prefix (directory must exist).
+    ///     fasta:   Path to the reference FASTA (may be gzipped); ``str`` or
+    ///              ``os.PathLike``.
+    ///     prefix:  Output file prefix (directory must exist); ``str`` or
+    ///              ``os.PathLike``.
     ///     meth:    Build a bisulfite/EM-seq methylation index (default
     ///              ``False``).
     ///     threads: Number of threads for index construction (default 1).
@@ -46,14 +49,15 @@ impl PyIndex {
     ///     RuntimeError: On I/O or internal errors.
     #[staticmethod]
     #[pyo3(signature = (fasta, prefix, meth=false, threads=1))]
-    fn build(fasta: &str, prefix: &str, meth: bool, threads: u32) -> PyResult<()> {
-        RsIndex::build_from_fasta(fasta, prefix, meth, threads).map_err(map_err)
+    fn build(fasta: PathBuf, prefix: PathBuf, meth: bool, threads: u32) -> PyResult<()> {
+        RsIndex::build_from_fasta(&fasta, &prefix, meth, threads).map_err(map_err)
     }
 
     /// Load a previously built minibwa index from disk.
     ///
     /// Args:
-    ///     prefix: File prefix used when the index was built.
+    ///     prefix: File prefix used when the index was built; ``str`` or
+    ///             ``os.PathLike``.
     ///     meth:   Load as a methylation index (must match build setting,
     ///             default ``False``).
     ///
@@ -64,9 +68,9 @@ impl PyIndex {
     ///     RuntimeError: If the index files cannot be read.
     #[staticmethod]
     #[pyo3(signature = (prefix, meth=false))]
-    fn load(prefix: &str, meth: bool) -> PyResult<Self> {
+    fn load(prefix: PathBuf, meth: bool) -> PyResult<Self> {
         Ok(PyIndex {
-            inner: Arc::new(RsIndex::load(prefix, meth).map_err(map_err)?),
+            inner: Arc::new(RsIndex::load(&prefix, meth).map_err(map_err)?),
         })
     }
 

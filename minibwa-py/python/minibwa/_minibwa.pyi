@@ -1,15 +1,22 @@
 """Type stubs for the compiled minibwa._minibwa extension module."""
 
+import os
+
 class Index:
     """A minibwa reference index."""
 
     @staticmethod
-    def build(fasta: str, prefix: str, meth: bool = False, threads: int = 1) -> None:
+    def build(
+        fasta: str | os.PathLike[str],
+        prefix: str | os.PathLike[str],
+        meth: bool = False,
+        threads: int = 1,
+    ) -> None:
         """Build a minibwa index from a FASTA file."""
         ...
 
     @staticmethod
-    def load(prefix: str, meth: bool = False) -> "Index":
+    def load(prefix: str | os.PathLike[str], meth: bool = False) -> "Index":
         """Load a previously built minibwa index from disk."""
         ...
 

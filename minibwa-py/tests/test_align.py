@@ -1,6 +1,7 @@
 """Tests for minibwa alignment functions."""
 
 import os
+import pathlib
 import tempfile
 
 import minibwa
@@ -57,6 +58,19 @@ def test_build_load_map() -> None:
         assert len(h.cigar) >= 1
         assert h.cigar[0][0] in "M=X"
         assert repr(hits[0]).startswith("Hit(")
+
+
+def test_build_load_accepts_pathlike() -> None:
+    # Bioinformatics callers pass pathlib.Path; build/load must accept os.PathLike,
+    # not just str.
+    ref = _synthetic_reference(5000)
+    with tempfile.TemporaryDirectory() as d:
+        fa = pathlib.Path(d) / "ref.fa"
+        fa.write_text(">chr1\n" + ref + "\n")
+        prefix = pathlib.Path(d) / "idx"
+        minibwa.Index.build(fa, prefix, meth=False, threads=1)
+        idx = minibwa.Index.load(prefix, meth=False)
+        assert idx.n_contigs() == 1
 
 
 def test_map_pair() -> None:

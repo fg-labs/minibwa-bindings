@@ -59,7 +59,9 @@ impl<'a> Aligner<'a> {
     /// Align a read pair (paired-end). Returns `(hits_r1, hits_r2)`. Pairing,
     /// mate rescue, and proper-pair flagging use minibwa's PE path with the
     /// insert-size parameters on `Opts`. If the options enable methylation,
-    /// R1 is treated as C2T and R2 as G2A automatically.
+    /// R1 is treated as C2T and R2 as G2A automatically; this requires `idx`
+    /// to have been built and loaded with `meth = true`, otherwise the
+    /// alignments are silently wrong.
     ///
     /// # Errors
     ///
@@ -174,6 +176,8 @@ impl<'a> Aligner<'a> {
     /// Paired-end mode is forced off (these are independent reads). If the
     /// options enable methylation, every read is treated as the C2T (read-1)
     /// strand — for G2A or mixed methylation use [`Aligner::map`] per read.
+    /// Methylation requires `idx` to have been built and loaded with
+    /// `meth = true`, otherwise the alignments are silently wrong.
     ///
     /// # Errors
     ///

@@ -394,7 +394,9 @@ fn map(
 ///
 /// Enables paired-end scoring, mate rescue, and proper-pair flagging via
 /// minibwa's PE path.  If the options enable methylation, R1 is treated as
-/// C2T and R2 as G2A automatically.  The GIL is released during alignment.
+/// C2T and R2 as G2A automatically; this requires ``index`` to have been built
+/// and loaded with ``meth=True``, otherwise the alignments are silently wrong.
+/// The GIL is released during alignment.
 ///
 /// Args:
 ///     index: A loaded ``Index``.
@@ -447,7 +449,9 @@ fn map_pair(
 /// across the whole slice (prefetch-driven), which the single-read ``map``
 /// cannot do.  Paired-end mode is forced off — reads are aligned
 /// independently.  If the options enable methylation, every read is treated
-/// as the C2T (read-1) strand; use ``map`` per read for G2A.
+/// as the C2T (read-1) strand; use ``map`` per read for G2A.  Methylation
+/// requires ``index`` to have been built and loaded with ``meth=True``,
+/// otherwise the alignments are silently wrong.
 ///
 /// ``names`` and ``seqs`` must be the same length.
 ///

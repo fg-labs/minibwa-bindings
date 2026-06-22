@@ -170,9 +170,9 @@ impl PyOpts {
     /// Set the gap-open penalty.
     ///
     /// Args:
-    ///     open: Gap-open penalty (``q`` parameter, positive integer).
-    fn set_gap_open(&mut self, open: i32) {
-        self.inner = self.inner.clone().set_gap_open(open);
+    ///     penalty: Gap-open penalty (``q`` parameter, positive integer).
+    fn set_gap_open(&mut self, penalty: i32) {
+        self.inner = self.inner.clone().set_gap_open(penalty);
     }
 
     /// Set the gap-extend penalty.

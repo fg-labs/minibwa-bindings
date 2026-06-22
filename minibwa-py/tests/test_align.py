@@ -193,3 +193,16 @@ def test_opts_setters() -> None:
         query = ref[1000:1150]
         hits = minibwa.map(idx, o, "r", query)
         assert isinstance(hits, list)
+
+
+def test_opts_setters_keyword_form() -> None:
+    # The documented keyword names (mirrored in the .pyi stub) must match the
+    # actual parameter names, so callers and type checkers agree.
+    o = minibwa.Opts()
+    o.set_min_seed_len(v=19)
+    o.set_out_n(v=5)
+    o.set_match_score(score=1)
+    o.set_mismatch_penalty(penalty=4)
+    o.set_gap_open(penalty=6)
+    o.set_gap_extend(extend=1)
+    o.set_pe_insert_size(avg=400, std=50, lo=200, hi=600)

@@ -286,6 +286,10 @@ impl<'a> Aligner<'a> {
 
     /// Align one read, returning owned hits. `name` must be NUL-free.
     ///
+    /// A non-[`Meth::None`] value requires `idx` to have been built and loaded
+    /// with `meth = true`; otherwise the conversion is applied against an
+    /// unconverted reference and the alignments are silently wrong.
+    ///
     /// # Errors
     ///
     /// Returns [`Error::InvalidInput`] if `seq` is empty or `name` contains a

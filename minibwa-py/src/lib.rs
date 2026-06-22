@@ -336,7 +336,10 @@ fn to_pyhit(h: minibwa::Hit) -> PyHit {
 ///     name:  Read name (must not contain NUL bytes).
 ///     seq:   Read sequence (non-empty DNA string).
 ///     meth:  Methylation strand — ``"none"`` (default), ``"c2t"``, or
-///            ``"g2a"``.  ``Meth`` enum values are accepted too.
+///            ``"g2a"``.  ``Meth`` enum values are accepted too.  A non-``"none"``
+///            value requires ``index`` to have been built and loaded with
+///            ``meth=True``; otherwise the conversion is applied against an
+///            unconverted reference and the alignments are silently wrong.
 ///
 /// Returns:
 ///     ``list[Hit]`` — may be empty if the read does not align.

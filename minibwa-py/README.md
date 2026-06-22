@@ -19,7 +19,7 @@ idx = minibwa.Index.load("ref")
 
 opts = minibwa.Opts()
 for hit in minibwa.map(idx, opts, "read1", "ACGTACGT..."):
-    print(hit.contig, hit.ref_start, hit.ref_end, "-" if hit.reverse else "+", hit.cigar)
+    print(hit.contig, hit.ref_start, hit.ref_end, hit.strand, hit.cigar_string)
 ```
 
 - Paired-end: `minibwa.map_pair(idx, opts, n1, s1, n2, s2)`

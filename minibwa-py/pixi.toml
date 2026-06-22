@@ -4,7 +4,7 @@ channels = ["conda-forge"]
 platforms = ["osx-arm64", "linux-64", "linux-aarch64"]
 
 [dependencies]
-python = ">=3.9,<3.14"
+python = ">=3.9,<3.15"
 pip = "*"
 maturin = ">=1.5,<2.0"
 pytest = "*"

@@ -19,3 +19,16 @@ format       = { cmd = "ruff format",               description = "Format Python
 format-check = { cmd = "ruff format --check",       description = "Check formatting without modifying files" }
 lint         = { cmd = "ruff check",                description = "Lint Python source with ruff" }
 typecheck    = { cmd = "mypy python tests",         description = "Type-check with mypy" }
+
+# Pinned-interpreter environments so `pixi run -e pyXYZ test` builds and tests
+# the extension against a specific Python. CI runs both to guarantee each
+# supported interpreter builds the abi3 extension (see python.yml).
+[feature.py313.dependencies]
+python = "3.13.*"
+
+[feature.py314.dependencies]
+python = "3.14.*"
+
+[environments]
+py313 = ["py313"]
+py314 = ["py314"]

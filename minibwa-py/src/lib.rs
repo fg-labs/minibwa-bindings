@@ -263,7 +263,11 @@ impl PyHit {
     /// is the preferred accessor.
     #[getter]
     fn strand(&self) -> &'static str {
-        if self.reverse { "-" } else { "+" }
+        if self.reverse {
+            "-"
+        } else {
+            "+"
+        }
     }
 
     /// Return the CIGAR as a SAM-style string, e.g. ``"100M5I45M"``.
@@ -274,7 +278,10 @@ impl PyHit {
         if self.cigar.is_empty() {
             return "*".to_owned();
         }
-        self.cigar.iter().map(|(op, len)| format!("{len}{op}")).collect()
+        self.cigar
+            .iter()
+            .map(|(op, len)| format!("{len}{op}"))
+            .collect()
     }
 
     fn __repr__(&self) -> String {
@@ -321,7 +328,11 @@ fn to_pyhit(h: minibwa::Hit) -> PyHit {
         is_primary: h.is_primary,
         is_secondary: h.is_secondary,
         is_supplementary: h.is_supplementary,
-        cigar: h.cigar.iter().map(|c| (cigar_char(c.kind), c.len)).collect(),
+        cigar: h
+            .cigar
+            .iter()
+            .map(|c| (cigar_char(c.kind), c.len))
+            .collect(),
     }
 }
 

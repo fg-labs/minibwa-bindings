@@ -11,6 +11,13 @@ pytest = "*"
 ruff = "*"
 mypy = "*"
 
+# The extension is abi3 (abi3-py39), so the built wheel is forward-compatible
+# with newer interpreters. pyo3 0.22 only supports building against CPython
+# <= 3.13, though, and hard-errors when the active interpreter is newer unless
+# this is set. Allow building on 3.14 (which the solver may pick under <3.15).
+[activation.env]
+PYO3_USE_ABI3_FORWARD_COMPATIBILITY = "1"
+
 [tasks]
 develop      = { cmd = "maturin develop --release", description = "Build & install the extension into this env" }
 build        = { cmd = "maturin build --release",   description = "Build a wheel into target/wheels" }

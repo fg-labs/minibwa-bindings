@@ -192,6 +192,29 @@ def test_error_paths() -> None:
             minibwa.Opts(preset="nope")
 
 
+def test_error_paths_names_and_batches() -> None:
+    ref = _synthetic_reference(5000)
+    with tempfile.TemporaryDirectory() as d:
+        idx, opts = _build_index(d, ref)
+        query = ref[1000:1150]
+
+        # NUL byte in a read name → ValueError.
+        with pytest.raises(ValueError):
+            minibwa.map(idx, opts, "bad\x00name", query)
+
+        # map_pair with an empty mate → ValueError.
+        with pytest.raises(ValueError):
+            minibwa.map_pair(idx, opts, "p1", query, "p2", "")
+
+        # map_many with mismatched names/seqs lengths → ValueError.
+        with pytest.raises(ValueError):
+            minibwa.map_many(idx, opts, ["r0", "r1"], [query])
+
+        # map_many with an empty sequence → ValueError.
+        with pytest.raises(ValueError):
+            minibwa.map_many(idx, opts, ["r0"], [""])
+
+
 def test_opts_setters() -> None:
     ref = _synthetic_reference(5000)
     with tempfile.TemporaryDirectory() as d:

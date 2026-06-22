@@ -341,6 +341,9 @@ fn to_pyhit(h: minibwa::Hit) -> PyHit {
 /// The GIL is released during alignment so the call does not block other
 /// Python threads.
 ///
+/// To align many reads, prefer ``map_many``: it batches BWT seeding across the
+/// whole set and is substantially faster than calling ``map`` in a loop.
+///
 /// Args:
 ///     index: A loaded ``Index``.
 ///     opts:  Alignment options.

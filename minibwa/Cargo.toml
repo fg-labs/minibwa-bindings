@@ -21,7 +21,7 @@ test-util = []
 [dependencies]
 minibwa-sys = { workspace = true }
 libc = "0.2"
-thiserror = "1"
+thiserror = "2"
 
 [dev-dependencies]
 minibwa = { path = ".", features = ["test-util"] }

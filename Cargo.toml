@@ -3,12 +3,24 @@ resolver = "2"
 members = ["minibwa-sys", "minibwa"]
 exclude = ["minibwa-py"]
 
+# All workspace crates share this single version (lockstep), inherited via
+# `version.workspace = true`. The publish workflow's "Verify lockstep workspace
+# versions" gate enforces the invariant; inheriting from one source here makes
+# drift structurally impossible and lets release-plz bump every crate by editing
+# a single field.
 [workspace.package]
+version = "0.1.1"
 edition = "2021"
 license = "MIT"
 authors = ["Nils Homer <nils@fulcrumgenomics.com>"]
 repository = "https://github.com/fg-labs/minibwa-bindings"
 rust-version = "1.75"
+
+# Internal crates are referenced by dependents via `<crate>.workspace = true`.
+# The version requirement is pinned here to the shared workspace version so a
+# published crate depends on the exact matching release of its sibling.
+[workspace.dependencies]
+minibwa-sys = { version = "0.1.1", path = "minibwa-sys" }
 
 [workspace.lints.clippy]
 all = "warn"

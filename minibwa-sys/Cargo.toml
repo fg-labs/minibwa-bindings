@@ -10,12 +10,14 @@ description = "Low-level FFI bindings to minibwa"
 keywords = ["bioinformatics", "bwa", "alignment", "ffi", "genomics"]
 categories = ["external-ffi-bindings", "science"]
 documentation = "https://docs.rs/minibwa-sys"
+readme = "README.md"
 include = [
     "src/",
     "build.rs",
     "shim/",
     "vendor/",
     "Cargo.toml",
+    "README.md",
 ]
 
 [package.metadata.docs.rs]

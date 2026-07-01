@@ -102,6 +102,10 @@ pub struct Hit {
     pub score: i32,
     /// Number of suboptimal hits.
     pub n_sub: i32,
+    /// Seeded alignment block length.
+    pub blen: i32,
+    /// Seeded exact match length.
+    pub mlen: i32,
     /// True when this hit is part of a proper pair.
     pub proper_pair: bool,
     /// True when this is the primary alignment.
@@ -180,6 +184,8 @@ pub(crate) unsafe fn hit_from_raw(h: &sys::mb_hit_t, idx: &Index) -> Hit {
         mapq: h.mapq.clamp(0, 255) as u8,
         score: h.score,
         n_sub: h.n_sub,
+        blen: h.blen,
+        mlen: h.mlen,
         proper_pair: h.proper_pair() != 0,
         is_primary,
         is_secondary,
@@ -279,6 +285,8 @@ mod tests {
             mapq: 0,
             score: 0,
             n_sub: 0,
+            blen: 0,
+            mlen: 0,
             proper_pair: false,
             is_primary: false,
             is_secondary: false,
@@ -301,6 +309,8 @@ mod tests {
             mapq: 60,
             score: 100,
             n_sub: 0,
+            blen: 0,
+            mlen: 0,
             proper_pair: false,
             is_primary: true,
             is_secondary: false,

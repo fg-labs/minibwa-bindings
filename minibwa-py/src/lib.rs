@@ -213,6 +213,8 @@ impl PyOpts {
 ///     mapq (int):          Mapping quality (0–255).
 ///     score (int):         Alignment score.
 ///     n_sub (int):         Number of sub-optimal hits.
+///     blen (int):          Seeded alignment block length.
+///     mlen (int):          Seeded exact match length.
 ///     proper_pair (bool):  ``True`` if insert size is within the expected
 ///                          range (only meaningful for paired-end hits).
 ///     is_primary (bool):   ``True`` for the primary alignment.
@@ -242,6 +244,10 @@ struct PyHit {
     score: i32,
     #[pyo3(get)]
     n_sub: i32,
+    #[pyo3(get)]
+    blen: i32,
+    #[pyo3(get)]
+    mlen: i32,
     #[pyo3(get)]
     proper_pair: bool,
     #[pyo3(get)]
@@ -324,6 +330,8 @@ fn to_pyhit(h: minibwa::Hit) -> PyHit {
         mapq: h.mapq,
         score: h.score,
         n_sub: h.n_sub,
+        blen: h.blen,
+        mlen: h.mlen,
         proper_pair: h.proper_pair,
         is_primary: h.is_primary,
         is_secondary: h.is_secondary,

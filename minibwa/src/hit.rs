@@ -102,9 +102,9 @@ pub struct Hit {
     pub score: i32,
     /// Number of suboptimal hits.
     pub n_sub: i32,
-    /// Seeded alignment block length
+    /// Seeded alignment block length.
     pub blen: i32,
-    /// Seeded exact match length
+    /// Seeded exact match length.
     pub mlen: i32,
     /// True when this hit is part of a proper pair.
     pub proper_pair: bool,

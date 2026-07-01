@@ -464,6 +464,18 @@ mod tests {
         assert_eq!(h.strand, crate::Strand::Forward);
         assert!(h.mapq > 0, "mapq should be non-zero for a unique hit");
         assert!(h.score > 0, "alignment score should be positive");
+        assert!(
+            h.blen > 0,
+            "seeded block length should be positive for a mapped hit"
+        );
+        assert!(
+            h.mlen > 0,
+            "seeded match length should be positive for a mapped hit"
+        );
+        assert!(
+            h.mlen <= h.blen,
+            "match length cannot exceed block length (identity <= 1)"
+        );
         let first_kind = h.cigar[0].kind;
         assert!(
             first_kind == crate::hit::CigarKind::Match || first_kind == crate::hit::CigarKind::Eq,

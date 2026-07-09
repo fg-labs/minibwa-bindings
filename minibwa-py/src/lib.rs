@@ -389,7 +389,7 @@ fn map(
     let name = name.as_bytes().to_vec();
     let seq = seq.as_bytes().to_vec();
     // Release the GIL during alignment.
-    let hits = py.allow_threads(|| {
+    let hits = py.detach(|| {
         let aligner = Aligner::new(&idx, &opts.inner);
         let mut buf = ThreadBuf::new();
         aligner.map(&mut buf, &name, &seq, mt)
@@ -439,7 +439,7 @@ fn map_pair(
         seq2.as_bytes().to_vec(),
     );
     let (h1, h2) = py
-        .allow_threads(|| {
+        .detach(|| {
             let aligner = Aligner::new(&idx, &opts.inner);
             let mut buf = ThreadBuf::new();
             aligner.map_pair(&mut buf, &n1, &s1, &n2, &s2)
@@ -488,7 +488,7 @@ fn map_many(
     // Copy to owned bytes before releasing the GIL.
     let names: Vec<Vec<u8>> = names.into_iter().map(|s| s.into_bytes()).collect();
     let seqs: Vec<Vec<u8>> = seqs.into_iter().map(|s| s.into_bytes()).collect();
-    let result = py.allow_threads(|| {
+    let result = py.detach(|| {
         let aligner = Aligner::new(&idx, &opts.inner);
         let mut buf = ThreadBuf::new();
         aligner.map_many(&mut buf, &names, &seqs)

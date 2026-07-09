@@ -4,6 +4,7 @@
 [![crates.io](https://img.shields.io/crates/v/minibwa.svg)](https://crates.io/crates/minibwa)
 [![docs.rs](https://docs.rs/minibwa/badge.svg)](https://docs.rs/minibwa)
 [![PyPI](https://img.shields.io/pypi/v/minibwa.svg)](https://pypi.org/project/minibwa)
+[![install with bioconda](https://img.shields.io/badge/install%20with-bioconda-brightgreen.svg?style=flat)](http://bioconda.github.io/recipes/python-minibwa/README.html)
 
 Rust and Python bindings for [minibwa](https://github.com/lh3/minibwa).
 

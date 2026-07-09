@@ -1,5 +1,10 @@
 [alias]
+# minibwa-py (the pyo3 extension) is a workspace member but is excluded from the
+# build/test/lint aliases: `--workspace` includes every member and ignores
+# `default-members`, so it must be dropped explicitly to keep the pure-Rust CI
+# from needing a Python interpreter. It is built and linted via maturin / the
+# Python CI workflow instead. (`fmt --all` is fine — formatting needs no build.)
 ci-fmt = "fmt --all -- --check"
-ci-lint = "clippy --workspace --all-targets -- -D warnings"
-ci-build = "build --workspace --all-targets --locked"
-ci-test = "test --workspace --locked"
+ci-lint = "clippy --workspace --exclude minibwa-py --all-targets -- -D warnings"
+ci-build = "build --workspace --exclude minibwa-py --all-targets --locked"
+ci-test = "test --workspace --exclude minibwa-py --locked"

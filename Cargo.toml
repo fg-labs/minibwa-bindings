@@ -1,7 +1,12 @@
 [workspace]
 resolver = "2"
-members = ["minibwa-sys", "minibwa"]
-exclude = ["minibwa-py"]
+# minibwa-py is a member so it inherits the shared workspace version and
+# release-plz bumps it in lockstep with the crates. It is kept out of
+# `default-members` (and excluded from the `--workspace` ci-* aliases in
+# .cargo/config.toml) so the pure-Rust CI never builds the pyo3 extension —
+# maturin builds it explicitly from the minibwa-py/ directory.
+members = ["minibwa-sys", "minibwa", "minibwa-py"]
+default-members = ["minibwa-sys", "minibwa"]
 
 # All workspace crates share this single version (lockstep), inherited via
 # `version.workspace = true`. The publish workflow's "Verify lockstep workspace

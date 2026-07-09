@@ -1,6 +1,10 @@
 [package]
 name = "minibwa-py"
-version = "0.1.0"
+# Inherit the shared workspace version so this crate — and the wheel maturin
+# builds from it — stays in lockstep with the minibwa crates (release-plz bumps
+# the single [workspace.package].version). The `pyproject.toml` version is
+# `dynamic`, so maturin reads this resolved version for the wheel.
+version.workspace = true
 edition = "2021"
 license = "MIT"
 authors = ["Nils Homer <nils@fulcrumgenomics.com>"]

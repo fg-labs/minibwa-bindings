@@ -1,5 +1,7 @@
-[![Bioconda](https://img.shields.io/conda/dn/bioconda/minibwa.svg?style=flag&label=Bioconda)](https://anaconda.org/bioconda/minibwa)
+[![GitHub Downloads](https://img.shields.io/github/downloads/lh3/minibwa/total.svg?style=social&logo=github&label=Download)](https://github.com/lh3/minibwa/releases)
+[![Bioconda](https://img.shields.io/conda/dn/bioconda/minibwa.svg?style=flag&label=bioconda)](https://bioconda.github.io/recipes/minibwa/README.html)
 [![Homebrew](https://img.shields.io/homebrew/v/minibwa)](https://formulae.brew.sh/formula/minibwa)
+[![Build Status](https://github.com/lh3/minibwa/actions/workflows/build.yml/badge.svg)](https://github.com/lh3/minibwa/actions)
 [![preprint](https://img.shields.io/badge/arXiv-2606.15357-blue)](https://arxiv.org/abs/2606.15357)
 
 ## Getting Started
@@ -91,6 +93,12 @@ Note in the default adaptive mode, `-g`/`-w`/`-W`/`-N`/`-m`/`-s` only changes
 the short-read setting; the long-read setting is fixed. This mode is disabled
 with `--adap=no` or when `-x sr` or `-x lr` is specified.
 
+#### Mapping with legacy bwa-mem CLI
+
+Minibwa also provides legacy bwa-mem command-line interface (CLI) via the `mem` subcommand.
+However, due to algorithm and parameter differences, many bwa-mem options are ignored.
+The output minibwa alignment is also not identical to bwa-mem.
+
 ## Developers' Guide
 
 Minibwa provides basic APIs for loading index and aligning reads.
@@ -99,11 +107,32 @@ independently; [api-test/ex-batch.c](api-test/ex-batch.c) aligns multiple reads
 in batch, which is faster and also supports paired-end mapping.
 [dev.md](dev.md) explains how minibwa differs from BWA-MEM and minimap2.
 
+## License
+
+Minibwa is distributed under the MIT license. It also incorporates source code
+from the following projects:
+
+ * libsais: Apache 2 License. Copyright (c) 2021-2025 Ilya Grebnov
+ * mimalloc: MIT License. Copyright (c) 2018-2026 Microsoft Corporation, Daan Leijen
+
+The master branch is optionally built on the following projects:
+
+ * QSufSort: HPND License. Copyright (c) 1999 N. Jesper Larsson
+ * bwtgen: GPL 2 License. Copyright (c) 2004 Wong Chi Kwong
+
+Notably, the master branch includes GPL'd [bwtgen.c](bwtgen.c) for low-memory
+BWT construction. If you compile this file, which is the default, the resulting
+binary will be GPL'd. You can disable the low-memory algorithm with `make
+gpl=0` to generate non-GPL binary. The [Apache2 branch][apache2] does not
+include GPL'd source code.
+
 ## Limitations
 
 * Minibwa does not work with noisy long reads or spliced RNA-seq reads.
 * Minibwa does not support undirectional bisulfite sequencing data.
+* Minibwa does not recognize alternate haplotypes.
 
+[apache2]: https://github.com/lh3/minibwa/tree/Apache2
 [zlib]: https://zlib.net/
 [mimalloc]: https://github.com/microsoft/mimalloc
 [libsais]: https://github.com/IlyaGrebnov/libsais

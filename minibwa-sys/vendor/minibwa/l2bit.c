@@ -4,7 +4,7 @@
 #include "kommon.h"
 #include "l2bit.h"
 #include "kseq.h"
-KSEQ_INIT(gzFile, gzread);
+KSEQ_INIT(gzFile, gzread)
 
 static int64_t l2b_pos2cid(const l2b_t *l2b, int64_t s, int64_t len, int64_t *cst)
 {

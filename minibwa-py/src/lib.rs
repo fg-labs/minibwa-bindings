@@ -155,6 +155,34 @@ impl PyOpts {
         self.inner = self.inner.clone().set_out_n(v);
     }
 
+    /// Set the maximum number of secondary hits reported in the ``XA`` tag.
+    ///
+    /// A hit is eligible for ``XA`` only if there are at most this many
+    /// suboptimal hits scoring above the ``xa_ratio`` fraction of the best
+    /// hit's score. minibwa's default is ``5``. Setting ``v <= 0`` disables
+    /// ``XA``-tag output entirely (equivalent to bwa's ``-h 0``); the value is
+    /// otherwise passed through to minibwa unchecked.
+    ///
+    /// Args:
+    ///     v: Max secondary hits emitted to the ``XA`` tag.
+    fn set_xa_max(&mut self, v: i32) {
+        self.inner = self.inner.clone().set_xa_max(v);
+    }
+
+    /// Set the score-ratio threshold for ``XA``-tag inclusion.
+    ///
+    /// A suboptimal hit is emitted to the ``XA`` tag only if its score is at
+    /// least ``ratio * best_score``. minibwa's default is ``0.8``. ``ratio`` is
+    /// a fraction of the best hit's score, so only values in ``[0.0, 1.0]`` are
+    /// meaningful; non-finite values (``NaN``/``inf``) silently suppress all
+    /// ``XA`` hits. The value is passed through to minibwa unchecked.
+    ///
+    /// Args:
+    ///     ratio: Score-ratio threshold in ``[0.0, 1.0]``.
+    fn set_xa_ratio(&mut self, ratio: f32) {
+        self.inner = self.inner.clone().set_xa_ratio(ratio);
+    }
+
     /// Set the Smith-Waterman match score.
     ///
     /// Args:

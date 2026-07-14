@@ -51,6 +51,14 @@ class Opts:
         """Set the maximum number of secondary alignments to output."""
         ...
 
+    def set_xa_max(self, v: int) -> None:
+        """Set the maximum number of secondary hits reported in the ``XA`` tag (default 5)."""
+        ...
+
+    def set_xa_ratio(self, ratio: float) -> None:
+        """Set the score-ratio threshold for ``XA``-tag inclusion (default 0.8)."""
+        ...
+
     def set_match_score(self, score: int) -> None:
         """Set the Smith-Waterman match score."""
         ...

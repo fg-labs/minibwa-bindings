@@ -7,7 +7,7 @@ name = "minibwa"
 # Sourced from the crate version (workspace-inherited) by maturin, so the wheel
 # tracks the release version automatically — no manual bump needed.
 dynamic = ["version"]
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 description = "Python bindings for minibwa"
 license = { text = "MIT" }
 authors = [{ name = "Nils Homer", email = "nils@fulcrumgenomics.com" }]
@@ -34,7 +34,7 @@ strip = true
 
 [tool.ruff]
 line-length    = 100
-target-version = "py39"
+target-version = "py310"
 output-format  = "full"
 preview        = true
 

@@ -64,6 +64,33 @@ impl Opts {
         self
     }
 
+    /// Max number of secondary hits reported in the `XA` tag.
+    ///
+    /// A hit is eligible for `XA` only if there are at most this many
+    /// suboptimal hits scoring above [`set_xa_ratio`](Self::set_xa_ratio) of
+    /// the best hit's score. minibwa's default is `5`.
+    ///
+    /// Setting `v <= 0` disables `XA`-tag output entirely (equivalent to bwa's
+    /// `-h 0`); the value is otherwise passed through to minibwa unchecked.
+    pub fn set_xa_max(mut self, v: i32) -> Self {
+        self.0.xa_max = v;
+        self
+    }
+
+    /// Score-ratio threshold for `XA`-tag inclusion.
+    ///
+    /// A suboptimal hit is emitted to the `XA` tag only if its score is at
+    /// least `ratio * best_score`. minibwa's default is `0.8`. `ratio` is a
+    /// fraction of the best hit's score, so only values in `[0.0, 1.0]` are
+    /// meaningful: `0.0` includes every suboptimal hit and `1.0` only those
+    /// tied with the best. Non-finite values (`NaN`/`inf`) make the comparison
+    /// never hold and silently suppress all `XA` hits. The value is passed
+    /// through to minibwa unchecked.
+    pub fn set_xa_ratio(mut self, ratio: f32) -> Self {
+        self.0.xa_ratio = ratio;
+        self
+    }
+
     /// Match score (Smith-Waterman `a` parameter).
     pub fn set_match_score(mut self, score: i32) -> Self {
         self.0.a = score;
@@ -156,6 +183,17 @@ mod tests {
         assert!(Opts::with_preset("sr").is_ok());
         // "lr" is a long-read preset — paired-end is irrelevant and should be off by default.
         assert!(!Opts::with_preset("lr").unwrap().is_paired());
+    }
+
+    #[test]
+    fn xa_defaults_and_setters() {
+        // minibwa's mb_opt_init defaults (options.c): xa_max = 5, xa_ratio = 0.8.
+        let o = Opts::new();
+        assert_eq!(o.0.xa_max, 5);
+        assert!((o.0.xa_ratio - 0.8).abs() < 1e-6);
+        let o = o.set_xa_max(12).set_xa_ratio(0.5);
+        assert_eq!(o.0.xa_max, 12);
+        assert!((o.0.xa_ratio - 0.5).abs() < 1e-6);
     }
 
     #[test]

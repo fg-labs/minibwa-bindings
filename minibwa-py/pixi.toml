@@ -4,7 +4,7 @@ channels = ["conda-forge"]
 platforms = ["osx-arm64", "linux-64", "linux-aarch64"]
 
 [dependencies]
-python = ">=3.9,<3.15"
+python = ">=3.10,<3.15"
 pip = "*"
 maturin = ">=1.5,<2.0"
 pytest = "*"
@@ -21,8 +21,12 @@ lint         = { cmd = "ruff check",                description = "Lint Python s
 typecheck    = { cmd = "mypy python tests",         description = "Type-check with mypy" }
 
 # Pinned-interpreter environments so `pixi run -e pyXYZ test` builds and tests
-# the extension against a specific Python. CI runs both to guarantee each
-# supported interpreter builds the abi3 extension (see python.yml).
+# the extension against a specific Python. CI runs all three to guarantee each
+# supported interpreter builds the abi3 extension (see python.yml); py310 is the
+# declared floor (abi3-py310 / requires-python >=3.10).
+[feature.py310.dependencies]
+python = "3.10.*"
+
 [feature.py313.dependencies]
 python = "3.13.*"
 
@@ -30,5 +34,6 @@ python = "3.13.*"
 python = "3.14.*"
 
 [environments]
+py310 = ["py310"]
 py313 = ["py313"]
 py314 = ["py314"]

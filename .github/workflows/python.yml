@@ -21,7 +21,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        env: [py313, py314]
+        env: [py310, py313, py314]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v6
@@ -44,7 +44,7 @@ jobs:
         run: cargo ci-lint
       - uses: prefix-dev/setup-pixi@a09b6247153796b190642a2b53fac4241043cf6f # v0.8.1
         with:
-          pixi-version: v0.66.0
+          pixi-version: v0.71.0
           manifest-path: minibwa-py/pixi.toml
           cache: true
       - name: Check formatting

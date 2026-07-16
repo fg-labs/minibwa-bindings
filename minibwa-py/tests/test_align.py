@@ -114,7 +114,7 @@ def test_map_many() -> None:
         for i, hits in enumerate(result):
             assert len(hits) >= 1, f"read r{i} produced no hits"
         expected_offsets = [500, 2000, 3500]
-        for i, (hits, exp) in enumerate(zip(result, expected_offsets)):
+        for i, (hits, exp) in enumerate(zip(result, expected_offsets, strict=True)):
             pos = hits[0].ref_start
             assert abs(pos - exp) <= 100, f"read r{i}: expected pos ~{exp}, got {pos}"
             assert hits[0].contig == "chr1"

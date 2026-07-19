@@ -13,29 +13,29 @@ ARCH=		$(shell uname -m)
 omp=		$(shell printf '\043include <omp.h>\nint main(){return 0;}' | $(CC) -x c -fopenmp -o /dev/null - 2>/dev/null && echo "1" || echo "0")
 
 ifneq ($(asan),)
-	CFLAGS+=-fsanitize=address
-	LDFLAGS+=-fsanitize=address
-	LIBS+=-ldl
+	override CFLAGS+=-fsanitize=address
+	override LDFLAGS+=-fsanitize=address
+	override LIBS+=-ldl
 endif
 
 ifeq ($(omp),1)
-	CPPFLAGS+=-DLIBSAIS_OPENMP
-	CFLAGS+=-fopenmp
-	LIBS+=-fopenmp
+	override CPPFLAGS+=-DLIBSAIS_OPENMP
+	override CFLAGS+=-fopenmp
+	override LIBS+=-fopenmp
 endif
 
 ifneq ($(gpl),0)
 	AOBJS+=QSufSort.o bwtgen.o
-	CPPFLAGS+=-DUSE_GPL
+	override CPPFLAGS+=-DUSE_GPL
 endif
 
 ifeq ($(mimalloc),0)
 	MALLOC_O=
-	CPPFLAGS+=-DHAVE_KALLOC
+	override CPPFLAGS+=-DHAVE_KALLOC
 endif
 
 ifeq ($(ARCH), x86_64)
-	CFLAGS+=-msse4.2 -mpopcnt
+	override CFLAGS+=-msse4.2 -mpopcnt
 endif
 
 # Dual-gap extension (ksw_extd2): a dispatcher chooses AVX-512BW / AVX2 / SSE4.2

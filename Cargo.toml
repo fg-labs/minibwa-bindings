@@ -14,7 +14,7 @@ default-members = ["minibwa-sys", "minibwa"]
 # drift structurally impossible and lets release-plz bump every crate by editing
 # a single field.
 [workspace.package]
-version = "0.1.3"
+version = "0.1.4"
 edition = "2021"
 license = "MIT"
 authors = ["Nils Homer <nils@fulcrumgenomics.com>"]
@@ -25,7 +25,7 @@ rust-version = "1.75"
 # The version requirement is pinned here to the shared workspace version so a
 # published crate depends on the exact matching release of its sibling.
 [workspace.dependencies]
-minibwa-sys = { version = "0.1.3", path = "minibwa-sys" }
+minibwa-sys = { version = "0.1.4", path = "minibwa-sys" }
 
 [workspace.lints.clippy]
 all = "warn"

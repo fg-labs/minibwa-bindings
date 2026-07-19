@@ -60,8 +60,9 @@ impl<'a> Aligner<'a> {
     /// mate rescue, and proper-pair flagging use minibwa's PE path with the
     /// insert-size parameters on `Opts`. If the options enable methylation,
     /// R1 is treated as C2T and R2 as G2A automatically; this requires `idx`
-    /// to have been built and loaded with `meth = true`, otherwise the
-    /// alignments are silently wrong.
+    /// to have been built and loaded with `meth = true`. Against a non-meth
+    /// index, minibwa declines the request and both reads come back with no
+    /// hits rather than with bogus alignments.
     ///
     /// # Errors
     ///
@@ -177,7 +178,9 @@ impl<'a> Aligner<'a> {
     /// options enable methylation, every read is treated as the C2T (read-1)
     /// strand — for G2A or mixed methylation use [`Aligner::map`] per read.
     /// Methylation requires `idx` to have been built and loaded with
-    /// `meth = true`, otherwise the alignments are silently wrong.
+    /// `meth = true`. Against a non-meth index, minibwa declines the request
+    /// and every read comes back with no hits rather than with bogus
+    /// alignments.
     ///
     /// # Errors
     ///
@@ -291,8 +294,9 @@ impl<'a> Aligner<'a> {
     /// Align one read, returning owned hits. `name` must be NUL-free.
     ///
     /// A non-[`Meth::None`] value requires `idx` to have been built and loaded
-    /// with `meth = true`; otherwise the conversion is applied against an
-    /// unconverted reference and the alignments are silently wrong.
+    /// with `meth = true`. Against a non-meth index, minibwa declines the
+    /// request and the read comes back with no hits rather than with bogus
+    /// alignments.
     ///
     /// # Errors
     ///
@@ -394,6 +398,64 @@ mod tests {
         let idx = Index::load(&prefix, false).unwrap();
         let opts = Opts::new();
         (dir, seq, idx, opts)
+    }
+
+    /// Build a 3-base (methylation) index over the same synthetic reference.
+    fn build_test_meth_index(tag: &str) -> (std::path::PathBuf, Vec<u8>, Index, Opts) {
+        let dir = std::env::temp_dir().join(format!("minibwa_meth_{tag}_{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let seq = synthetic_reference(5000, 13);
+        let fa = write_fasta(&dir, "chr1", &seq);
+        let prefix = dir.join("idx");
+        Index::build_from_fasta(&fa, &prefix, true, 1).unwrap();
+        let idx = Index::load(&prefix, true).unwrap();
+        (dir, seq, idx, Opts::new())
+    }
+
+    /// A read still carrying its Cs (i.e. fully methylated) must map against a
+    /// C2T index: minibwa converts the query before seeding. This is the
+    /// regression test for vendored r405 — before that fix the single-read
+    /// `mb_map` path seeded the *unconverted* query against the 3-base index,
+    /// so a C-bearing query found no seeds and fell out with no hits.
+    #[test]
+    fn map_meth_c2t_converts_query_before_seeding() {
+        let (dir, seq, idx, opts) = build_test_meth_index("c2t");
+        let aligner = Aligner::new(&idx, &opts);
+        let mut buf = ThreadBuf::new();
+
+        let query = &seq[1000..1150];
+        assert!(
+            query.contains(&b'C'),
+            "query must carry Cs to exercise the conversion"
+        );
+
+        let hits = aligner.map(&mut buf, b"m1", query, Meth::C2T).unwrap();
+        assert!(!hits.is_empty(), "C2T read should map against a meth index");
+        assert_eq!(hits[0].ref_start, 1000, "should map back to its origin");
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    /// Requesting a conversion against a plain (non-meth) index is refused by
+    /// minibwa since r405 — it yields no hits rather than bogus alignments.
+    #[test]
+    fn map_meth_against_non_meth_index_yields_no_hits() {
+        let (dir, seq, idx, opts) = build_test_index("meth_mismatch");
+        let aligner = Aligner::new(&idx, &opts);
+        let mut buf = ThreadBuf::new();
+
+        let query = &seq[1000..1150];
+        // Sanity: the same query maps fine without a conversion.
+        let plain = aligner.map(&mut buf, b"m1", query, Meth::None).unwrap();
+        assert!(!plain.is_empty(), "control: unconverted read should map");
+
+        let hits = aligner.map(&mut buf, b"m1", query, Meth::C2T).unwrap();
+        assert!(
+            hits.is_empty(),
+            "meth request on a non-meth index should yield no hits"
+        );
+
+        std::fs::remove_dir_all(&dir).ok();
     }
 
     #[test]

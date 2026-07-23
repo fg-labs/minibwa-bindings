@@ -49,11 +49,7 @@ fn main() {
         "kthread.c",
     ];
 
-    let mut build = cc::Build::new();
-    build.cpp(false).std("c99").include(&vendor).include(&shim);
-    if !is_debug {
-        build.define("NDEBUG", None);
-    }
+    let mut build = c_build(&vendor, &shim, is_debug);
     for s in base_srcs {
         build.file(vendor.join(s));
     }
@@ -82,11 +78,7 @@ fn main() {
             ("ksw_extd2_avx2", &["-mavx2"][..]),
             ("ksw_extd2_avx512", &["-mavx512bw"][..]),
         ] {
-            let mut k = cc::Build::new();
-            k.cpp(false).std("c99").include(&vendor).include(&shim);
-            if !is_debug {
-                k.define("NDEBUG", None);
-            }
+            let mut k = c_build(&vendor, &shim, is_debug);
             k.file(vendor.join("ksw2_extd2_wide.c"));
             k.define("ksw_extd2_sse", tier);
             for f in flags {
@@ -114,11 +106,7 @@ fn main() {
     // minibwa lib so that extd2_ref_impl (defined here) resolves the forward
     // declaration in ksw2_extd2_dispatch.c which lives in the main lib.
     {
-        let mut k = cc::Build::new();
-        k.cpp(false).std("c99").include(&vendor).include(&shim);
-        if !is_debug {
-            k.define("NDEBUG", None);
-        }
+        let mut k = c_build(&vendor, &shim, is_debug);
         k.file(vendor.join("ksw2_extd2_sse.c"));
         k.define("ksw_extd2_sse", "extd2_ref_impl");
         if is_x86 {
@@ -140,6 +128,31 @@ fn main() {
     println!("cargo:rerun-if-changed=vendor/COMMIT");
 
     generate_bindings(&manifest, &vendor, &shim, &out);
+}
+
+/// A `cc::Build` configured the way every vendored-C translation unit in this crate is
+/// compiled: C99, no C++, both include dirs, `NDEBUG` outside debug builds, and FP
+/// contraction pinned off. Every C build here goes through this so the settings cannot
+/// drift apart as translation units are added.
+///
+/// Pin FP contraction OFF so every f32/f64 site rounds identically regardless of host
+/// compiler. minibwa's Makefile sets no `-ffp-contract` flag, so clang (statement-level
+/// `on`) fuses `a*b+c` while gcc `-std=c99` may not — a toolchain-dependent divergence
+/// that bites the chain gap penalty (`mb_log2`, ~3-in-140k at large `dd`) and the f64
+/// pestat std-dev. Without this, the same input can produce different alignments on
+/// different build hosts, and any consumer diffing against this library sees failures it
+/// cannot reproduce. Determinism over ambient default.
+///
+/// The ksw2 kernels are integer-only today, so the flag is a no-op for them; it is applied
+/// uniformly anyway so the guarantee holds for whatever lands in those TUs next.
+fn c_build(vendor: &std::path::Path, shim: &std::path::Path, is_debug: bool) -> cc::Build {
+    let mut build = cc::Build::new();
+    build.cpp(false).std("c99").include(vendor).include(shim);
+    build.flag_if_supported("-ffp-contract=off");
+    if !is_debug {
+        build.define("NDEBUG", None);
+    }
+    build
 }
 
 fn generate_bindings(

@@ -19,23 +19,29 @@ fn write_fasta(dir: &std::path::Path) -> (std::path::PathBuf, Vec<u8>) {
     (fa, seq)
 }
 
-#[test]
-fn build_load_map_one_read() {
-    let dir = std::env::temp_dir().join(format!("minibwa_sys_smoke_{}", std::process::id()));
+/// Build the synthetic reference into a fresh temp dir and load it. Returns the temp dir
+/// (caller removes it), the reference bases, and the loaded index (caller destroys it).
+fn build_and_load_index(tag: &str) -> (std::path::PathBuf, Vec<u8>, *mut minibwa_sys::mb_idx_t) {
+    let dir = std::env::temp_dir().join(format!("minibwa_sys_{}_{}", tag, std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
     let (fa, refseq) = write_fasta(&dir);
     let prefix = dir.join("ref");
-
     let c_fa = CString::new(fa.to_str().unwrap()).unwrap();
     let c_prefix = CString::new(prefix.to_str().unwrap()).unwrap();
-
     unsafe {
         let rc = minibwa_sys::mb_index_build(c_fa.as_ptr(), c_prefix.as_ptr(), 0, 1);
         assert_eq!(rc, 0, "index build failed");
-
         let idx = minibwa_sys::mb_idx_load(c_prefix.as_ptr(), 0);
         assert!(!idx.is_null(), "index load failed");
+        (dir, refseq, idx)
+    }
+}
 
+#[test]
+fn build_load_map_one_read() {
+    let (dir, refseq, idx) = build_and_load_index("smoke");
+
+    unsafe {
         let mut opt: minibwa_sys::mb_opt_t = std::mem::zeroed();
         minibwa_sys::mb_opt_init(&mut opt);
 
@@ -69,6 +75,118 @@ fn build_load_map_one_read() {
             }
         }
         libc::free(hits as *mut libc::c_void);
+        minibwa_sys::mb_idx_destroy(idx);
+    }
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+/// The oracle entry points that size a raw allocation from a caller-supplied count must
+/// treat an empty batch as an empty result and reject a negative count outright, rather
+/// than sizing a `malloc` from it. `mb_lchain_dp` itself contracts on `n == 0 || a == 0`,
+/// so the empty case has a defined answer: no chains, no anchors.
+#[test]
+fn shim_count_boundaries() {
+    let (dir, _refseq, idx) = build_and_load_index("bounds");
+
+    unsafe {
+        let mut out_u = [0u64; 4];
+        let mut out_sid = [0i32; 4];
+        let mut out_len = [0i32; 4];
+        let mut out_qpos = [0i32; 4];
+        let mut out_tpos = [0i64; 4];
+        let mut n_a: std::os::raw::c_int = -7; // poisoned: the callee must overwrite it
+
+        // Empty anchor set: no chains, no anchors, nothing allocated.
+        let n_u = minibwa_sys::mb_shim_lchain_dp(
+            idx,
+            5000,
+            5000,
+            500,
+            25,
+            5000,
+            40,
+            0.12,
+            0,
+            std::ptr::null(),
+            std::ptr::null(),
+            std::ptr::null(),
+            std::ptr::null(),
+            out_u.as_mut_ptr(),
+            out_u.len() as i32,
+            out_sid.as_mut_ptr(),
+            out_len.as_mut_ptr(),
+            out_qpos.as_mut_ptr(),
+            out_tpos.as_mut_ptr(),
+            out_sid.len() as i32,
+            &mut n_a,
+        );
+        assert_eq!(n_u, 0, "empty anchor set should yield no chains");
+        assert_eq!(n_a, 0, "empty anchor set should yield no anchors");
+
+        // Negative count is rejected before any allocation is sized from it.
+        let rc = minibwa_sys::mb_shim_lchain_dp(
+            idx,
+            5000,
+            5000,
+            500,
+            25,
+            5000,
+            40,
+            0.12,
+            -1,
+            std::ptr::null(),
+            std::ptr::null(),
+            std::ptr::null(),
+            std::ptr::null(),
+            out_u.as_mut_ptr(),
+            out_u.len() as i32,
+            out_sid.as_mut_ptr(),
+            out_len.as_mut_ptr(),
+            out_qpos.as_mut_ptr(),
+            out_tpos.as_mut_ptr(),
+            out_sid.len() as i32,
+            &mut n_a,
+        );
+        assert_eq!(rc, -1, "negative anchor count should be rejected");
+
+        // Same contract on the seeding side of the shim.
+        let qseq = [0u8; 32];
+        let n_anchor = minibwa_sys::mb_shim_anchor(
+            idx,
+            0,
+            std::ptr::null(),
+            std::ptr::null(),
+            std::ptr::null(),
+            19,
+            qseq.len() as i32,
+            qseq.as_ptr(),
+            500,
+            out_sid.as_mut_ptr(),
+            out_len.as_mut_ptr(),
+            out_qpos.as_mut_ptr(),
+            out_tpos.as_mut_ptr(),
+            out_sid.len() as i32,
+        );
+        assert_eq!(n_anchor, 0, "empty seed set should yield no anchors");
+
+        let rc = minibwa_sys::mb_shim_anchor(
+            idx,
+            -1,
+            std::ptr::null(),
+            std::ptr::null(),
+            std::ptr::null(),
+            19,
+            qseq.len() as i32,
+            qseq.as_ptr(),
+            500,
+            out_sid.as_mut_ptr(),
+            out_len.as_mut_ptr(),
+            out_qpos.as_mut_ptr(),
+            out_tpos.as_mut_ptr(),
+            out_sid.len() as i32,
+        );
+        assert_eq!(rc, -1, "negative seed count should be rejected");
+
         minibwa_sys::mb_idx_destroy(idx);
     }
     std::fs::remove_dir_all(&dir).ok();

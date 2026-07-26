@@ -17,8 +17,15 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # Must run after `publish`: release-plz decides what to release by comparing the
+  # local manifest against crates.io, and `publish` is what updates crates.io. Run
+  # them concurrently and release-plz reads a pre-publish registry, so the push of a
+  # merged release PR makes it re-propose the version `publish` is about to release
+  # (an empty duplicate PR that nothing later closes). On non-release pushes
+  # `publish` exits early as a no-op, so this only costs ordering.
   release-pr:
     runs-on: ubuntu-latest
+    needs: publish
     permissions:
       pull-requests: write
       contents: write

@@ -431,6 +431,58 @@ int mb_shim_map(const mb_idx_t *idx, int n_reads,
     return d.overflow ? -1 : 0;
 }
 
+/* map-main.c:181's literal 20: below this many properly-paired fragments in the batch, native
+ * minibwa does not trust an estimate and uses the predefined insert-size stats instead. Named
+ * rather than inlined so the pairing oracles and the tests that exercise the boundary cannot
+ * disagree about where it is. */
+#define MB_SHIM_PE_MIN_PAIRS 20
+
+/* map-main.c:129+181 — the rule the pairing oracles must mirror.
+ *
+ * Native minibwa does NOT always estimate insert-size stats from the batch. It uses PREDEFINED
+ * stats when the user asked for them (`--pe-predef`) or when the batch holds fewer than
+ * MB_SHIM_PE_MIN_PAIRS properly-paired fragments, and calls mb_pestat only otherwise:
+ *
+ *     for (i = 0; i < 4; ++i) s->pes[i].failed = 1;          // map-main.c:129
+ *     ...
+ *     if ((opt->flag & MB_F_PE_PREDEF) || s->n_pe < 20) {    // map-main.c:181
+ *         s->pes[1].failed = 0;
+ *         s->pes[1].avg = opt->pe_avg, s->pes[1].std = opt->pe_std;
+ *         s->pes[1].lo = opt->pe_lo, s->pes[1].hi = opt->pe_hi;
+ *     } else
+ *         mb_pestat(...);
+ *
+ * The oracles previously called mb_pestat unconditionally, so on a small batch they modelled a
+ * code path native minibwa would not have taken. Two details matter for faithfulness:
+ *
+ *   - The pre-failing at map-main.c:129 is load-bearing, and it is easy to miss because the
+ *     `kom_calloc` of step_t already zeroed the array. `failed = 1` is NOT the zero value:
+ *     mb_pair_hits skips an orientation only `if (pes[dir].failed)`, so had C merely zeroed,
+ *     orientations 0/2/3 would stay LIVE with lo == hi == 0 and pair anything at distance
+ *     exactly 0. C fails them, so only FR can pair under predefined stats. The oracles declare
+ *     `pes` on the stack, so this function must reproduce both steps itself.
+ *   - `n_pe` counts fragments with exactly two segments. Every oracle here sets seg_cnt[i] = 2
+ *     for all n_frag fragments, so n_pe == n_frag.
+ *
+ * The estimate branch needs no pre-failing (mb_pestat memsets and recomputes all four), but doing
+ * it unconditionally keeps this function's contract "matches C's sequence", not "matches C's
+ * outcome on the branch I happened to check".
+ */
+static void shim_pestat_or_predef(void *km, const mb_opt_t *opt, int32_t n_frag,
+                                  const int32_t *seg_off, const int32_t *seg_cnt,
+                                  const int32_t *n_hit, mb_hit_t *const *hit,
+                                  mb_pestat_t pes[4]) {
+    memset(pes, 0, sizeof(pes[0]) * 4);          /* mirrors kom_calloc(step_t, 1) */
+    for (int i = 0; i < 4; ++i) pes[i].failed = 1; /* mirrors map-main.c:129 */
+    if ((opt->flag & MB_F_PE_PREDEF) || n_frag < MB_SHIM_PE_MIN_PAIRS) {
+        pes[1].failed = 0;
+        pes[1].avg = opt->pe_avg, pes[1].std = opt->pe_std;
+        pes[1].lo = opt->pe_lo, pes[1].hi = opt->pe_hi;
+    } else {
+        mb_pestat(km, opt, n_frag, seg_off, seg_cnt, n_hit, hit, pes);
+    }
+}
+
 /* Paired-end oracle: run C mb_map on 2*n_frag interleaved reads, mb_pestat over the batch, then
  * mb_pair per fragment (INCLUDING mate rescue). Returns, per mate m (2*n_frag total), the primary
  * (sam_pri) hit: out_tid[m] (-1 if none); out_pos[m*2]=ts,te; out_q[m*2]=qs,qe;
@@ -502,7 +554,7 @@ int mb_shim_pair(const mb_idx_t *idx, int n_frag,
         hit[j] = mb_map(&opt, idx, (int32_t)len[j], seq + off[j], L2B_METH_NONE, &n_hit[j], b, 0);
     for (int i = 0; i < n_frag; ++i) { seg_off[i] = i * 2; seg_cnt[i] = 2; }
     mb_pestat_t pes[4];
-    mb_pestat(mb_tbuf_km(b), &opt, n_frag, seg_off, seg_cnt, n_hit, hit, pes);
+    shim_pestat_or_predef(mb_tbuf_km(b), &opt, n_frag, seg_off, seg_cnt, n_hit, hit, pes);
 
     int ret = 0;
     for (int i = 0; i < n_frag; ++i) {
@@ -709,7 +761,7 @@ int mb_shim_pair_sam(const mb_idx_t *idx, int n_frag,
     int do_pairing = !(opt.flag & MB_F_NO_PAIRING);
     mb_pestat_t pes[4];
     if (do_pairing)
-        mb_pestat(mb_tbuf_km(b), &opt, n_frag, seg_off, seg_cnt, n_hit, hit, pes);
+        shim_pestat_or_predef(mb_tbuf_km(b), &opt, n_frag, seg_off, seg_cnt, n_hit, hit, pes);
 
     kstring_t s = {0, 0, 0};
     uint64_t pos = 0;
@@ -796,7 +848,7 @@ int mb_shim_pair_meth(const mb_idx_t *idx, int n_frag,
     }
     for (int i = 0; i < n_frag; ++i) { seg_off[i] = i * 2; seg_cnt[i] = 2; }
     mb_pestat_t pes[4];
-    mb_pestat(km, &opt, n_frag, seg_off, seg_cnt, n_hit, hit, pes);
+    shim_pestat_or_predef(km, &opt, n_frag, seg_off, seg_cnt, n_hit, hit, pes);
 
     int ret = 0;
     for (int i = 0; i < n_frag; ++i) {
@@ -993,7 +1045,7 @@ int mb_shim_pair_meth_sam(const mb_idx_t *idx, int n_frag,
     int do_pairing = !(opt.flag & MB_F_NO_PAIRING);
     mb_pestat_t pes[4];
     if (do_pairing)
-        mb_pestat(km, &opt, n_frag, seg_off, seg_cnt, n_hit, hit, pes);
+        shim_pestat_or_predef(km, &opt, n_frag, seg_off, seg_cnt, n_hit, hit, pes);
 
     kstring_t s = {0, 0, 0};
     uint64_t pos = 0;

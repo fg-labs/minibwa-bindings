@@ -57,6 +57,9 @@ double kom_realtime(void); // call at the beginning to reset the timer
 long kom_peakrss(void);
 double kom_percent_cpu(void);
 
+void *kom_mmap_file(const char *fn, size_t *len, int preload);
+int kom_munmap(void *base, size_t map_len);
+
 extern uint8_t kom_nt4_table[256], kom_comp_table[256];
 void kom_revcomp(uint64_t len, char *seq);
 

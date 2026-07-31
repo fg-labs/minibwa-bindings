@@ -218,9 +218,18 @@ static void *worker_pipeline(void *shared, int step, void *in)
 					int32_t n_sec = 0;
 					for (j = 0; j < s->n_hit[i]; ++j) {
 						const mb_hit_t *h = &s->hit[i][j];
-						if (h->parent == h->id || n_sec < opt->out_n)
+						if (h->parent == h->id || n_sec < opt->out_n) {
+							if (h->parent != h->id) {
+								const mb_hit_t *p = &s->hit[i][h->parent];
+								if (p->p && h->p) {
+									if (h->p->dp_max < (double)opt->out_s * p->p->dp_max) continue;
+								} else {
+									if (h->score < (double)opt->out_s * p->score) continue;
+								}
+							}
 							mb_format(km, &out, idx->l2b, t, seg_en - seg_st, &s->n_hit[seg_st], &s->hit[seg_st], j, opt, i - seg_st, mate_qlen);
-						n_sec += (h->parent != h->id);
+							n_sec += (h->parent != h->id);
+						}
 					}
 				} else if (!(opt->flag & MB_F_NO_UNMAP)) {
 					mb_format(km, &out, idx->l2b, t, seg_en - seg_st, &s->n_hit[seg_st], &s->hit[seg_st], -1, opt, i - seg_st, mate_qlen);
@@ -325,7 +334,6 @@ static void mb_insert_hdr(kstring_t *out, const char *str)
 static ko_longopt_t long_options[] = {
 	{ "kalloc",       ko_no_argument,       301 },
 	{ "outn",         ko_required_argument, 302 },
-	{ "pe-predef",    ko_optional_argument, 303 },
 	{ "rescue",       ko_required_argument, 304 },
 	{ "eqx",          ko_no_argument,       305 },
 	{ "pe",           ko_required_argument, 306 },
@@ -335,6 +343,9 @@ static ko_longopt_t long_options[] = {
 	{ "meth",         ko_no_argument,       310 },
 	{ "hic",          ko_no_argument,       311 },
 	{ "xa",           ko_required_argument, 312 },
+	{ "mmap",         ko_optional_argument, 313 },
+	{ "xa-ratio",     ko_required_argument, 314 },
+	{ "outs",         ko_required_argument, 315 },
 	{ "dbg-aln-seq",  ko_no_argument,       601 },
 	{ "dbg-anchor",   ko_no_argument,       602 },
 	{ "dbg-seed",     ko_no_argument,       603 },
@@ -378,16 +389,20 @@ static int usage_map(FILE *fp, const mb_opt_t *opt)
 	fprintf(fp, "  Paired-end:\n");
 	fprintf(fp, "    -P               skip pairing and mate rescue\n");
 	fprintf(fp, "    --rescue=INT     mate rescue for up to INT candidates; 0 to skip rescue [%d]\n", opt->max_rescue);
+	fprintf(fp, "    -I INT[,INT[,INT[,INT]]]\n");
+	fprintf(fp, "                     mean, stddev, max and min of isize distribution [inferred]\n");
 	fprintf(fp, "  Input/Output:\n");
 	fprintf(fp, "    -o FILE          output file name [stdout]\n");
 	fprintf(fp, "    -u               don't output unmapped reads\n");
-	fprintf(fp, "    --outn=NUM       output up to INT secondary alignments [0]\n");
-	fprintf(fp, "    --xa=NUM         if <=NUM hits with score >%g%% of the best hit, output them to XA [%d]\n", opt->xa_ratio*100.0, opt->xa_max);
+	fprintf(fp, "    --outn=NUM       output up to {NUM,-N} secondary alignments [0]\n");
+	fprintf(fp, "    --outs=FLOAT     output a secondary hit if score at least FLOAT*bestScore [%g]\n", opt->out_s);
+	fprintf(fp, "    --xa=NUM         if <=NUM hits with score >%g%% of the best hit, output them to XA [%d]\n", opt->out_s*100.0, opt->xa_max);
 	fprintf(fp, "    -y               copy FASTA/Q comments to output\n");
 	fprintf(fp, "    -Y               use soft clipping for supplementary alignments\n");
 	fprintf(fp, "    -H STR           if STR starts with @, insert to header; or insert lines in file STR []\n");
 	fprintf(fp, "    -5               take the alignment with the smallest query position as primary\n");
 	fprintf(fp, "    -K NUM1[,NUM2]   process NUM1-NUM2 bp of query sequences in a batch [100m,1g]\n");
+	fprintf(fp, "    --mmap[=lite]    load the index via memory mapped files (slower mapping) []\n");
 	fprintf(fp, "    --version        print version number\n");
 	fprintf(fp, "    --help           print this help message\n");
 	return fp == stdout? 0 : 1;
@@ -406,10 +421,21 @@ static inline void yes_or_no(mb_opt_t *opt, uint64_t flag, int long_idx, const c
 	}
 }
 
+static void set_ins_size(mb_opt_t *opt, const char *arg)
+{
+	char *q;
+	opt->pe_avg = (int32_t)(.499 + strtod(arg, &q));
+	opt->pe_std = (int32_t)(.499 + (*q == ','? strtod(q + 1, &q) : opt->pe_avg * 0.1));
+	opt->pe_hi = *q == ','? strtol(q + 1, &q, 10) : opt->pe_avg + opt->pe_std * 4;
+	opt->pe_lo = *q == ','? strtol(q + 1, &q, 10) : opt->pe_avg - opt->pe_std * 4;
+	if (opt->pe_lo < 1) opt->pe_lo = 1;
+	opt->flag |= MB_F_PE_PREDEF;
+}
+
 int main_map(int argc, char *argv[])
 {
-	const char *opt_str = "x:o:k:c:m:p:A:B:U:b:O:E:t:K:N:PyYR:H:aul:w:W:g:5s:f";
-	int32_t c;
+	const char *opt_str = "x:o:k:c:m:p:A:B:U:b:O:E:t:K:N:PyYR:H:aul:w:W:g:5s:fI:";
+	int32_t c, use_mmap = 0, mmap_preload = 1, is_meth = 0;
 	mb_idx_t *idx;
 	mb_opt_t mo;
 	char *fn_out = 0, *rg_line = 0, *s;
@@ -457,12 +483,11 @@ int main_map(int argc, char *argv[])
 		else if (c == 't') mo.n_thread = atoi(o.arg);
 		else if (c == 'R') rg_line = o.arg;
 		else if (c == 'H') mb_insert_hdr(&hdr_ins, o.arg);
+		else if (c == 'I') set_ins_size(&mo, o.arg);
 		else if (c == 301) { // --kalloc
 			yes_or_no(&mo, MB_F_NO_KALLOC, o.longidx, o.arg, 0);
 		} else if (c == 302) { // --outn
 			mo.out_n = kom_parse_num(o.arg, 0);
-		} else if (c == 303) { // --pe-predef
-			mo.flag |= MB_F_PE_PREDEF;
 		} else if (c == 304) { // --rescue
 			mo.max_rescue = atoi(o.arg);
 		} else if (c == 305) { // --eqx
@@ -482,6 +507,11 @@ int main_map(int argc, char *argv[])
 			mo.flag |= MB_F_PRIMARY5 | MB_F_NO_PAIRING;
 		} else if (c == 312) { // --xa
 			mo.xa_max = kom_parse_num(o.arg, 0);
+		} else if (c == 313) { // --mmap
+			use_mmap = 1;
+			if (o.arg != 0 && strcmp(o.arg, "lite") == 0) mmap_preload = 0;
+		} else if (c == 314 || c == 315) { // --outs or --xa-ratio
+			mo.out_s = atof(o.arg);
 		} else if (c == 601) { // --dbg-aln-seq
 			kom_dbg_flag |= MB_DBG_ALN_SEQ;
 		} else if (c == 602) { // --dbg-anchor
@@ -524,7 +554,8 @@ int main_map(int argc, char *argv[])
 	if (argc - o.ind < 2)
 		return usage_map(stderr, &mo);
 
-	idx = mb_idx_load(argv[o.ind], !!(mo.flag & MB_F_METH));
+	is_meth = !!(mo.flag & MB_F_METH);
+	idx = use_mmap? mb_idx_load_mmap(argv[o.ind], is_meth, mmap_preload) : mb_idx_load(argv[o.ind], is_meth);
 	kom_assert(idx, "failed to load the index.");
 	if (kom_verbose >= 3)
 		fprintf(stderr, "[M::%s::%.3f*%.2f] index loaded\n", __func__, kom_realtime(), kom_percent_cpu());
@@ -580,13 +611,13 @@ static int usage_mem(FILE *fp, const mb_opt_t *opt)
 	fprintf(fp, "    -v INT         verbose level: 1=error, 2=warning, 3=message, 4+=debugging [%d]\n", kom_verbose);
 	fprintf(fp, "    -T INT         suppress alignment with DP score lower than INT*{-A} [%d]\n", opt->min_dp_max);
 	fprintf(fp, "    -h INT         max secondary alignments at the XA tag [%d]\n", opt->xa_max);
-	fprintf(fp, "    -z FLOAT       skip XA if score < FLOAT*bestScore [%g]\n", opt->xa_ratio);
+	fprintf(fp, "    -z FLOAT       skip XA if score < FLOAT*bestScore [%g]\n", opt->out_s);
 	fprintf(fp, "    -a             output all alignments\n");
 	fprintf(fp, "    -C             copy FASTA/Q comments to output\n");
 	fprintf(fp, "    *V             output the reference FASTA header in the XR tag\n");
 	fprintf(fp, "    -Y             use soft clipping for supplementary alignments\n");
 	fprintf(fp, "    *M             mark shorter split hits as secondary\n");
-	fprintf(fp, "    -I FLOAT[,FLOAT[,INT[,INT]]]\n");
+	fprintf(fp, "    -I INT[,INT[,INT[,INT]]]\n");
 	fprintf(fp, "                   mean, stddev, max and min of isize distribution [inferred]\n");
 	fprintf(fp, "    *u             output XB instead of XA\n");
 	fprintf(fp, "Notes:\n");
@@ -625,7 +656,7 @@ int main_mem(int argc, char *argv[])
 		else if (c == 'p' || c == 'j' || c == 'q' || c == 'K' || c == 'V' || c == 'M' || c == 'u') {}
 		else if (c == 'a') mo.out_n = 1000000;
 		else if (c == 'h') mo.xa_max = atoi(o.arg);
-		else if (c == 'z') mo.xa_ratio = atof(o.arg);
+		else if (c == 'z') mo.out_s = atof(o.arg);
 		else if (c == 'R') rg_line = o.arg;
 		else if (c == 'H') mb_insert_hdr(&hdr_ins, o.arg);
 		else if (c == 'o') fn_out = o.arg;
@@ -634,14 +665,7 @@ int main_mem(int argc, char *argv[])
 		else if (c == 'T') mo.min_dp_max = atoi(o.arg);
 		else if (c == 'C') mo.flag |= MB_F_COPY_COMMENT;
 		else if (c == 'Y') mo.flag |= MB_F_SUPP_SOFT;
-		else if (c == 'I') {
-			char *q;
-			mo.pe_avg = strtod(o.arg, &q);
-			mo.pe_std = (int32_t)(.499 + (*q == ','? strtod(q + 1, &q) : mo.pe_avg * 0.1));
-			mo.pe_hi = *q == ','? strtol(q + 1, &q, 10) : mo.pe_avg + mo.pe_std * 4;
-			mo.pe_lo = *q == ','? strtol(q + 1, &q, 10) : mo.pe_avg - mo.pe_std * 4;
-			if (mo.pe_lo < 1) mo.pe_lo = 1;
-		}
+		else if (c == 'I') set_ins_size(&mo, o.arg);
 	}
 	if (argc - o.ind < 2) return usage_mem(stderr, &mo);
 

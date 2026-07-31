@@ -230,8 +230,14 @@ l2b_t *l2b_import(const char *fn, uint64_t seed)
 
 void l2b_destroy(l2b_t *l2b)
 {
-	free(l2b->cat_name); free(l2b->cat_comm);
-	free(l2b->pac); free(l2b->ambi); free(l2b->mask); free(l2b->ctg); free(l2b);
+	if (l2b->mmap) { // ambi/mask/pac/cat_name/cat_comm point into the mapped file
+		free(l2b->ctg); // ctg[] is always heap-allocated
+		kom_munmap(l2b->mmap, l2b->mmap_len);
+	} else {
+		free(l2b->cat_name); free(l2b->cat_comm);
+		free(l2b->pac); free(l2b->ambi); free(l2b->mask); free(l2b->ctg);
+	}
+	free(l2b);
 }
 
 int l2b_save(const char *fn, const l2b_t *l2b)
@@ -319,6 +325,63 @@ l2b_t *l2b_load(const char *fn)
 	return l2b;
 load_failure:
 	if (fp != stdin) fclose(fp);
+	l2b_destroy(l2b);
+	return 0;
+}
+
+l2b_t *l2b_load_mmap(const char *fn, int preload)
+{
+	uint8_t *base;
+	const uint64_t *hdr, *lens;
+	uint64_t off, i, len_name, len_comm, foff;
+	size_t map_len;
+	char *p_name, *p_comm;
+	l2b_t *l2b;
+
+	base = (uint8_t*)kom_mmap_file(fn, &map_len, preload);
+	if (base == 0) return 0;
+	if (map_len < 64 || strncmp((const char*)base, L2B_MAGIC, 4) != 0) { kom_munmap(base, map_len); return 0; }
+
+	l2b = kom_calloc(l2b_t, 1);
+	l2b->mmap = base;
+	l2b->mmap_len = map_len;
+	hdr = (const uint64_t*)base; // hdr[0] is magic+dummy; fields start at hdr[1]
+	l2b->n_ctg   = hdr[1];
+	l2b->tot_len = hdr[2];
+	l2b->n_ambi  = hdr[3];
+	l2b->n_mask  = hdr[4];
+	len_name     = hdr[5];
+	len_comm     = hdr[6];
+	l2b->n_pac   = hdr[7];
+
+	l2b->ctg = kom_calloc(l2b_ctg_t, l2b->n_ctg); // ctg[] is not stored in the file
+	lens = &hdr[8]; // contig lengths follow the 64-byte header
+	for (i = 0, off = 0; i < l2b->n_ctg; ++i) {
+		l2b->ctg[i].len = lens[i];
+		l2b->ctg[i].off = off;
+		off += lens[i];
+	}
+	if (off != l2b->tot_len) goto mmap_failure;
+
+	foff = 64 + l2b->n_ctg * 8; // point large arrays into the mapped file
+	l2b->ambi = (l2b_intv_t*)(base + foff); foff += l2b->n_ambi * 16;
+	l2b->mask = (l2b_intv_t*)(base + foff); foff += l2b->n_mask * 16;
+	l2b->pac  = (uint64_t*)  (base + foff); foff += l2b->n_pac  * 8;
+	l2b->cat_name = (char*)(base + foff);   foff += len_name;
+	l2b->cat_comm = (char*)(base + foff);   foff += len_comm;
+	if (foff != map_len) goto mmap_failure;
+
+	p_name = l2b->cat_name, p_comm = l2b->cat_comm;
+	for (i = 0; i < l2b->n_ctg; ++i) { // synchronize contig names and comments
+		l2b_ctg_t *ctg = &l2b->ctg[i];
+		ctg->name = p_name;
+		p_name += strlen(p_name) + 1;
+		ctg->comm = *p_comm? p_comm : 0;
+		p_comm += *p_comm? strlen(p_comm) + 1 : 1;
+	}
+	if (p_name - l2b->cat_name != len_name || p_comm - l2b->cat_comm != len_comm) goto mmap_failure;
+	return l2b;
+mmap_failure:
 	l2b_destroy(l2b);
 	return 0;
 }

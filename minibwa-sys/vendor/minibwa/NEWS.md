@@ -1,3 +1,40 @@
+Release 0.6-r416 (30 JUly, 2026)
+--------------------------------
+
+Notable changes:
+
+ * Bugfix: option `-I` was not working (#57 and #58)
+
+(0.6: 30 July 2026, r416)
+
+
+
+Release 0.5-r414 (25 July 2026)
+-------------------------------
+
+Notable changes:
+
+ * Improvement: theoretically better mapping quality (mapQ) for paired-end
+   reads. Bwa-mem overestimates mapQ in a rare case, which is an oversight.
+   The new release fixes the issue. On real-world SNP calling, the change
+   increases precision but reduces sensivity. See 98e89de for details.
+
+ * New feature: option `--mmap` for loading index as memory-mapped files (#55).
+   It reduces index loading time but may slow down mapping depending on the
+   system.
+
+ * New feature: option `-I` to specify the insert size distribution without
+   inferring from data (#57).
+
+ * New feature: option `--outs` to skip poor hits in output or in the XA tag
+   (#56).
+
+ * Bugfix: APIs did not support BS-seq (#53).
+
+(0.5: 25 July 2026, r414)
+
+
+
 Release 0.4-r400 (12 July 2026)
 -------------------------------
 

@@ -64,9 +64,9 @@ checksum = "9330f8b2ff13f34540b44e946ef35111825727b38d33286ef986142615121801"
 
 [[package]]
 name = "clang-sys"
-version = "1.8.1"
+version = "1.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0b023947811758c97c59bf9d1c188fd619ad4718dcaa767947df1cadb14f39f4"
+checksum = "157a8ba7b480713b56f4c09fd13fc3e0a22a5dfab8097ba61cbc5feef950788a"
 dependencies = [
  "glob",
  "libc",
@@ -75,9 +75,9 @@ dependencies = [
 
 [[package]]
 name = "either"
-version = "1.16.0"
+version = "1.17.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "91622ff5e7162018101f2fea40d6ebf4a78bbe5a49736a2020649edf9693679e"
+checksum = "9e5e8f6c15a24b9a3ee5efec809ccd006d3b30e8b3bb63c39af737c7f87daa1d"
 
 [[package]]
 name = "find-msvc-tools"
@@ -136,7 +136,7 @@ checksum = "cf8baf1c55e62ffcace7a9f06f4bd9cd3f0c4beb022d3b367256b91b87513d98"
 
 [[package]]
 name = "minibwa"
-version = "0.1.6"
+version = "0.1.7"
 dependencies = [
  "libc",
  "minibwa",
@@ -146,7 +146,7 @@ dependencies = [
 
 [[package]]
 name = "minibwa-py"
-version = "0.1.6"
+version = "0.1.7"
 dependencies = [
  "minibwa",
  "pyo3",
@@ -154,7 +154,7 @@ dependencies = [
 
 [[package]]
 name = "minibwa-sys"
-version = "0.1.6"
+version = "0.1.7"
 dependencies = [
  "bindgen",
  "cc",

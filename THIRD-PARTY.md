@@ -1,19 +1,22 @@
 # Third-party software
 
 `minibwa-sys` vendors the C source of **minibwa** under
-`minibwa-sys/vendor/minibwa/` (the pinned upstream commit is recorded in
-`minibwa-sys/vendor/COMMIT`). That tree, and the suffix-array library it bundles,
-carry their own licenses, reproduced below. Upstream's complete third-party
-notices are in `minibwa-sys/vendor/minibwa/LICENSE.txt`.
+`minibwa-sys/vendor/minibwa/`. The pin is recorded as the upstream base commit in
+`minibwa-sys/vendor/COMMIT` plus any fork commits cherry-picked on top, listed in
+apply order in `minibwa-sys/vendor/PATCHES`. That tree, and the suffix-array
+library it bundles, carry their own licenses, reproduced below. Upstream's
+complete third-party notices are in `minibwa-sys/vendor/minibwa/LICENSE.txt`.
 
 ## minibwa
 
 - Project: <https://github.com/lh3/minibwa> (Heng Li)
 - License: MIT — Copyright (c) Dana-Farber Cancer Institute
 - Vendored in full at `minibwa-sys/vendor/minibwa/`.
-- The pinned commit tracks lh3 `master` plus the AVX2/AVX-512 `ksw_extd2`
+- The pin tracks an upstream release plus the fork patches listed in
+  `minibwa-sys/vendor/PATCHES` — currently the AVX2/AVX-512 `ksw_extd2`
   runtime-dispatch patch (lh3 PR #20), carried on the `nh13/minibwa` fork until
-  it merges upstream.
+  it merges upstream. Patches are dropped automatically once upstream carries an
+  equivalent change.
 
 ## libsais (compiled)
 

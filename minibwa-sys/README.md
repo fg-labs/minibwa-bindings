@@ -22,5 +22,9 @@ MIT. The default build uses only the Apache-2.0 `libsais` for indexing. The GPL 
 From the workspace root:
 
 ```sh
-scripts/refresh-minibwa.sh <clean-commit> [local-source-path]
+scripts/refresh-minibwa.sh <commit> [--patch <sha>]... [--src <path>]
 ```
+
+`<commit>` is the upstream base (normally a release tag's commit), recorded in
+`vendor/COMMIT`; each `--patch` is a fork commit cherry-picked on top, recorded
+in `vendor/PATCHES`.

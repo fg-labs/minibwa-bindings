@@ -67,8 +67,8 @@ impl Opts {
     /// Max number of secondary hits reported in the `XA` tag.
     ///
     /// A hit is eligible for `XA` only if there are at most this many
-    /// suboptimal hits scoring above [`set_xa_ratio`](Self::set_xa_ratio) of
-    /// the best hit's score. minibwa's default is `5`.
+    /// suboptimal hits scoring above the [`set_xa_ratio`](Self::set_xa_ratio)
+    /// fraction of the best hit's score. minibwa's default is `5`.
     ///
     /// Setting `v <= 0` disables `XA`-tag output entirely (equivalent to bwa's
     /// `-h 0`); the value is otherwise passed through to minibwa unchecked.
@@ -77,17 +77,22 @@ impl Opts {
         self
     }
 
-    /// Score-ratio threshold for `XA`-tag inclusion.
+    /// Score-ratio threshold for reporting a suboptimal hit.
     ///
-    /// A suboptimal hit is emitted to the `XA` tag only if its score is at
-    /// least `ratio * best_score`. minibwa's default is `0.8`. `ratio` is a
-    /// fraction of the best hit's score, so only values in `[0.0, 1.0]` are
-    /// meaningful: `0.0` includes every suboptimal hit and `1.0` only those
-    /// tied with the best. Non-finite values (`NaN`/`inf`) make the comparison
-    /// never hold and silently suppress all `XA` hits. The value is passed
-    /// through to minibwa unchecked.
+    /// A suboptimal hit is reported only if its score is at least
+    /// `ratio * best_score`. minibwa's default is `0.8`. `ratio` is a fraction
+    /// of the best hit's score, so only values in `[0.0, 1.0]` are meaningful:
+    /// `0.0` includes every suboptimal hit and `1.0` only those tied with the
+    /// best. Non-finite values (`NaN`/`inf`) make the comparison never hold and
+    /// silently suppress all such hits. The value is passed through to minibwa
+    /// unchecked.
+    ///
+    /// Since minibwa 0.5-r412 this gates **both** `XA`-tag inclusion and
+    /// secondary-alignment output (`--outs`); before r412 it was `xa_ratio` and
+    /// affected only `XA`. Upstream renamed the field to `out_s` and kept
+    /// `--xa-ratio` as an alias for `--outs`, so this method keeps its name.
     pub fn set_xa_ratio(mut self, ratio: f32) -> Self {
-        self.0.xa_ratio = ratio;
+        self.0.out_s = ratio;
         self
     }
 
@@ -187,13 +192,14 @@ mod tests {
 
     #[test]
     fn xa_defaults_and_setters() {
-        // minibwa's mb_opt_init defaults (options.c): xa_max = 5, xa_ratio = 0.8.
+        // minibwa's mb_opt_init defaults (options.c): xa_max = 5, out_s = 0.8.
+        // `out_s` was named `xa_ratio` before minibwa 0.5-r412.
         let o = Opts::new();
         assert_eq!(o.0.xa_max, 5);
-        assert!((o.0.xa_ratio - 0.8).abs() < 1e-6);
+        assert!((o.0.out_s - 0.8).abs() < 1e-6);
         let o = o.set_xa_max(12).set_xa_ratio(0.5);
         assert_eq!(o.0.xa_max, 12);
-        assert!((o.0.xa_ratio - 0.5).abs() < 1e-6);
+        assert!((o.0.out_s - 0.5).abs() < 1e-6);
     }
 
     #[test]

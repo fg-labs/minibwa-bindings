@@ -134,6 +134,7 @@ int mb_shim_map_sam(const mb_idx_t *idx, int n_reads,
                     const char *const *names, const char *seq, const uint64_t *off, const uint32_t *len,
                     int paf, int64_t extra_flag,
                     const char *preset, const int64_t *ov, int n_ov, int has_pri, float pri,
+                    int has_out_s, float out_s,
                     uint64_t fset, uint64_t fclr,
                     char *out_buf, uint64_t out_cap, uint64_t *out_off);
 
@@ -149,6 +150,7 @@ void mb_shim_ksw_ll(int size, const uint8_t *query, int qlen, const uint8_t *tar
 int mb_shim_pair_sam(const mb_idx_t *idx, int n_frag,
                      const char *const *names, const char *seq, const uint64_t *off, const uint32_t *len,
                      const char *preset, const int64_t *ov, int n_ov, int has_pri, float pri,
+                     int has_out_s, float out_s,
                      uint64_t fset, uint64_t fclr,
                      char *out_buf, uint64_t out_cap, uint64_t *out_off);
 
@@ -171,6 +173,7 @@ int mb_shim_map_meth(const mb_idx_t *idx, const char *read, int len, int mt, int
 int mb_shim_map_meth_sam(const mb_idx_t *idx, int n_reads,
                          const char *const *names, const char *seq, const uint64_t *off, const uint32_t *len,
                          const char *preset, const int64_t *ov, int n_ov, int has_pri, float pri,
+                         int has_out_s, float out_s,
                          uint64_t fset, uint64_t fclr,
                          char *out_buf, uint64_t out_cap, uint64_t *out_off);
 
@@ -180,6 +183,7 @@ int mb_shim_map_meth_sam(const mb_idx_t *idx, int n_reads,
 int mb_shim_pair_meth_sam(const mb_idx_t *idx, int n_frag,
                           const char *const *names, const char *seq, const uint64_t *off, const uint32_t *len,
                           const char *preset, const int64_t *ov, int n_ov, int has_pri, float pri,
+                          int has_out_s, float out_s,
                           uint64_t fset, uint64_t fclr,
                           char *out_buf, uint64_t out_cap, uint64_t *out_off);
 
@@ -190,16 +194,33 @@ int mb_shim_map_hits(const mb_idx_t *idx, const char *seq, int len, int max_hits
 
 /* Length-adapted option oracle: dump the exact options the C pipeline uses for a read of length
  * `qlen` (mb_opt_init + mb_opt_adap). See the .c for the fixed field order. `oi` >=29 int32,
- * `of` >=3 float, `ol` >=2 int64. */
+ * `of` >=3 float, `ol` >=2 int64. These arrays carry no length parameter, so they must NOT grow —
+ * see the note in the .c. */
 void mb_shim_align_opt(int qlen, int32_t *oi, float *of, int64_t *ol);
 
 /* Override-aware mb_shim_align_opt: apply CLI overrides (preset -x, the OV_* scalar array with
  * MB_SHIM_OVR_KEEP=INT64_MIN sentinels, the -p float when has_pri, and flag set/clear masks) onto
- * mb_opt_init before mb_opt_adap. `n_ov` must be >= OV_N (15) for the array to be applied. Same
- * oi/of/ol output layout as mb_shim_align_opt. Layout mirrors cli::OptOverride::encode in Rust. */
+ * mb_opt_init before mb_opt_adap, plus the --outs float when has_out_s. Same oi/of/ol output
+ * layout as mb_shim_align_opt. Layout mirrors cli::OptOverride::encode in Rust.
+ *
+ * `n_ov` is the caller's array LENGTH and is honoured PER SLOT: slots the caller does not have keep
+ * their defaults, and slots the shim does not know are ignored. It used to be an all-or-nothing
+ * `n_ov >= OV_N` gate, which meant appending one slot silently disabled EVERY override for a caller
+ * built against the previous header — a wrong answer, not an error. Grow the OV_* enum by
+ * APPENDING only. */
 void mb_shim_align_opt_ovr(int qlen, const char *preset, const int64_t *ov, int n_ov,
-                           int has_pri, float pri, uint64_t fset, uint64_t fclr,
+                           int has_pri, float pri, int has_out_s, float out_s,
+                           uint64_t fset, uint64_t fclr,
                            int32_t *oi, float *of, int64_t *ol);
+
+/* Read back the insert-size model (-I) and --outs an override set produces. A SEPARATE entry point
+ * from mb_shim_align_opt_ovr on purpose: its oi/of arrays carry no length parameter, so appending
+ * indices there would silently overflow an un-updated caller instead of failing to compile. Growing
+ * the OUTPUT surface means a new function; growing the INPUT surface means appending an OV_* slot.
+ * `pe` receives {pe_avg, pe_std, pe_lo, pe_hi}; either pointer may be NULL. */
+void mb_shim_ins_size_ovr(const char *preset, const int64_t *ov, int n_ov,
+                          int has_out_s, float out_s_in, uint64_t fset, uint64_t fclr,
+                          int32_t *pe, float *out_s);
 
 /* Reference-sequence extraction oracle: C l2b_getseq (nt4, N=4) for contig tid, local [st,en),
  * into out; returns bases written. Bit-exact reference for the Rust L2b::getseq port. */

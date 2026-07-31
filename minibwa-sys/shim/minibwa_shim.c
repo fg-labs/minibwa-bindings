@@ -26,9 +26,14 @@
 #define MB_SHIM_OVR_KEEP INT64_MIN
 enum { OV_A = 0, OV_B, OV_MIN_LEN, OV_MAX_OCC, OV_MIN_CHAIN, OV_BEST_N, OV_PEN_UNPAIR,
        OV_MAX_SR_LEN, OV_MAX_GAP, OV_BW, OV_BW_LONG, OV_MIN_DP_MAX, OV_OUT_N, OV_MAX_RESCUE,
-       OV_XA_MAX, OV_N };
-static void shim_apply_ovr(mb_opt_t *opt, const char *preset, const int64_t *ov,
-                           int has_pri, float pri, uint64_t fset, uint64_t fclr);
+       OV_XA_MAX,
+       /* Appended 2026-07-31: the -I insert-size model. Slots are APPENDED, never reordered — a
+        * caller built against an older header passes a shorter array and must keep working. */
+       OV_PE_AVG, OV_PE_STD, OV_PE_LO, OV_PE_HI,
+       OV_N };
+static void shim_apply_ovr(mb_opt_t *opt, const char *preset, const int64_t *ov, int n_ov,
+                           int has_pri, float pri, int has_out_s, float out_s,
+                           uint64_t fset, uint64_t fclr);
 #include "bseq.h"    /* mb_bseq1_t (SAM formatting oracle) */
 
 /* Provided by minibwa's index.c (not declared in minibwa.h). */
@@ -659,6 +664,7 @@ int mb_shim_map_sam(const mb_idx_t *idx, int n_reads,
                     const char *const *names, const char *seq, const uint64_t *off, const uint32_t *len,
                     int paf, int64_t extra_flag,
                     const char *preset, const int64_t *ov, int n_ov, int has_pri, float pri,
+                    int has_out_s, float out_s,
                     uint64_t fset, uint64_t fclr,
                     char *out_buf, uint64_t out_cap, uint64_t *out_off) {
     mb_opt_t opt;
@@ -667,7 +673,7 @@ int mb_shim_map_sam(const mb_idx_t *idx, int n_reads,
     if (paf) opt.flag |= MB_F_PAF; /* 0x1: PAF instead of SAM */
     opt.flag |= (uint64_t)extra_flag; /* e.g. MB_F_EQX / MB_F_WRITE_CS/DS/MD */
     /* CLI overrides: must match the Rust mapping path (derive_read_opt) exactly for oracle parity. */
-    shim_apply_ovr(&opt, preset, (ov && n_ov >= OV_N) ? ov : NULL, has_pri, pri, fset, fclr);
+    shim_apply_ovr(&opt, preset, ov, n_ov, has_pri, pri, has_out_s, out_s, fset, fclr);
     mb_tbuf_t *b = mb_tbuf_init(0);
     if (!b) { shim_set_err("mb_shim_map_sam: tbuf init failed"); return -1; }
     kstring_t s = {0, 0, 0};
@@ -734,6 +740,7 @@ void mb_shim_ksw_ll(int size, const uint8_t *query, int qlen, const uint8_t *tar
 int mb_shim_pair_sam(const mb_idx_t *idx, int n_frag,
                      const char *const *names, const char *seq, const uint64_t *off, const uint32_t *len,
                      const char *preset, const int64_t *ov, int n_ov, int has_pri, float pri,
+                    int has_out_s, float out_s,
                      uint64_t fset, uint64_t fclr,
                      char *out_buf, uint64_t out_cap, uint64_t *out_off) {
     int n_reads = n_frag * 2;
@@ -741,7 +748,7 @@ int mb_shim_pair_sam(const mb_idx_t *idx, int n_frag,
     mb_opt_init(&opt);
     opt.n_thread = 1;
     /* CLI overrides: must match the Rust mapping path (derive_read_opt) exactly for oracle parity. */
-    shim_apply_ovr(&opt, preset, (ov && n_ov >= OV_N) ? ov : NULL, has_pri, pri, fset, fclr);
+    shim_apply_ovr(&opt, preset, ov, n_ov, has_pri, pri, has_out_s, out_s, fset, fclr);
     mb_tbuf_t *b = mb_tbuf_init(0);
     if (!b) { shim_set_err("mb_shim_pair_sam: tbuf init failed"); return -1; }
     mb_hit_t **hit = (mb_hit_t **)calloc(n_reads, sizeof(mb_hit_t *));
@@ -945,13 +952,14 @@ int mb_shim_map_meth(const mb_idx_t *idx, const char *read, int len, int mt, int
 int mb_shim_map_meth_sam(const mb_idx_t *idx, int n_reads,
                          const char *const *names, const char *seq, const uint64_t *off, const uint32_t *len,
                          const char *preset, const int64_t *ov, int n_ov, int has_pri, float pri,
+                    int has_out_s, float out_s,
                          uint64_t fset, uint64_t fclr,
                          char *out_buf, uint64_t out_cap, uint64_t *out_off) {
     mb_opt_t opt;
     mb_opt_init(&opt);
     opt.n_thread = 1;
     opt.flag |= MB_F_METH;
-    shim_apply_ovr(&opt, preset, (ov && n_ov >= OV_N) ? ov : NULL, has_pri, pri, fset, fclr);
+    shim_apply_ovr(&opt, preset, ov, n_ov, has_pri, pri, has_out_s, out_s, fset, fclr);
     mb_tbuf_t *b = mb_tbuf_init(0);
     if (!b) { shim_set_err("mb_shim_map_meth_sam: tbuf init failed"); return -1; }
     void *km = mb_tbuf_km(b);
@@ -1009,6 +1017,7 @@ int mb_shim_map_meth_sam(const mb_idx_t *idx, int n_reads,
 int mb_shim_pair_meth_sam(const mb_idx_t *idx, int n_frag,
                           const char *const *names, const char *seq, const uint64_t *off, const uint32_t *len,
                           const char *preset, const int64_t *ov, int n_ov, int has_pri, float pri,
+                    int has_out_s, float out_s,
                           uint64_t fset, uint64_t fclr,
                           char *out_buf, uint64_t out_cap, uint64_t *out_off) {
     int n_reads = n_frag * 2;
@@ -1016,7 +1025,7 @@ int mb_shim_pair_meth_sam(const mb_idx_t *idx, int n_frag,
     mb_opt_init(&opt);
     opt.n_thread = 1;
     opt.flag |= MB_F_METH;
-    shim_apply_ovr(&opt, preset, (ov && n_ov >= OV_N) ? ov : NULL, has_pri, pri, fset, fclr);
+    shim_apply_ovr(&opt, preset, ov, n_ov, has_pri, pri, has_out_s, out_s, fset, fclr);
     mb_tbuf_t *b = mb_tbuf_init(0);
     if (!b) { shim_set_err("mb_shim_pair_meth_sam: tbuf init failed"); return -1; }
     void *km = mb_tbuf_km(b);
@@ -1135,31 +1144,54 @@ int mb_shim_map_hits(const mb_idx_t *idx, const char *seq, int len, int max_hits
  *   oi[25..29)= pen_unpair, max_rescue, max_sr_len, out_n     (PE-pairing + output knobs)
  *   of[0..3)  = chain_gap_scale, pri_ratio, mask_level         (floats)
  *   ol[0..2)  = max_sw_mat, (int64)flag
- * `oi` must hold >=29 int32, `of` >=3 float, `ol` >=2 int64. */
+ * `oi` must hold >=29 int32, `of` >=3 float, `ol` >=2 int64.
+ *
+ * DO NOT grow these arrays. Unlike the `ov` INPUT array, they carry no length parameter, so a
+ * caller built against an older header would not fail to compile — it would silently overflow a
+ * stack buffer. New OUTPUT fields need a new entry point (or a capacity argument), not an extra
+ * index here. The INPUT side is safe to grow: see `n_ov` and the OV_* enum. */
 /* Apply CLI overrides onto a freshly-mb_opt_init'd base opt: -x preset first, then scalar overrides
  * (sentinel-guarded), the -p float, then the flag set/clear masks — mirroring main_map's order.
  * (Declared near the top of the file; layout enum/macro live there too.) */
-static void shim_apply_ovr(mb_opt_t *opt, const char *preset, const int64_t *ov,
-                           int has_pri, float pri, uint64_t fset, uint64_t fclr) {
+/* Apply slot `slot` if the caller's array is long enough to have it AND it is not the keep
+ * sentinel. Per-slot, not per-array: the old all-or-nothing `n_ov >= OV_N` guard meant appending a
+ * slot silently disabled EVERY override for a caller built against the previous header, and passing
+ * a longer array silently dropped its tail. Both are silent wrong answers rather than errors. */
+#define SHIM_OVR_HAS(slot) ((slot) < n_ov && ov[(slot)] != MB_SHIM_OVR_KEEP)
+
+static void shim_apply_ovr(mb_opt_t *opt, const char *preset, const int64_t *ov, int n_ov,
+                           int has_pri, float pri, int has_out_s, float out_s,
+                           uint64_t fset, uint64_t fclr) {
     if (preset && *preset) mb_opt_preset(opt, preset);
-    if (ov) {
-        if (ov[OV_A]          != MB_SHIM_OVR_KEEP) opt->a               = (int32_t)ov[OV_A];
-        if (ov[OV_B]          != MB_SHIM_OVR_KEEP) opt->b               = (int32_t)ov[OV_B];
-        if (ov[OV_MIN_LEN]    != MB_SHIM_OVR_KEEP) opt->min_len         = (int32_t)ov[OV_MIN_LEN];
-        if (ov[OV_MAX_OCC]    != MB_SHIM_OVR_KEEP) opt->max_occ         = (int32_t)ov[OV_MAX_OCC];
-        if (ov[OV_MIN_CHAIN]  != MB_SHIM_OVR_KEEP) opt->min_chain_score = (int32_t)ov[OV_MIN_CHAIN];
-        if (ov[OV_BEST_N]     != MB_SHIM_OVR_KEEP) opt->best_n          = (int32_t)ov[OV_BEST_N];
-        if (ov[OV_PEN_UNPAIR] != MB_SHIM_OVR_KEEP) opt->pen_unpair      = (int32_t)ov[OV_PEN_UNPAIR];
-        if (ov[OV_MAX_SR_LEN] != MB_SHIM_OVR_KEEP) opt->max_sr_len      = (int32_t)ov[OV_MAX_SR_LEN];
-        if (ov[OV_MAX_GAP]    != MB_SHIM_OVR_KEEP) opt->max_gap         = (int32_t)ov[OV_MAX_GAP];
-        if (ov[OV_BW]         != MB_SHIM_OVR_KEEP) opt->bw              = (int32_t)ov[OV_BW];
-        if (ov[OV_BW_LONG]    != MB_SHIM_OVR_KEEP) opt->bw_long         = (int32_t)ov[OV_BW_LONG];
-        if (ov[OV_MIN_DP_MAX] != MB_SHIM_OVR_KEEP) opt->min_dp_max      = (int32_t)ov[OV_MIN_DP_MAX];
-        if (ov[OV_OUT_N]      != MB_SHIM_OVR_KEEP) opt->out_n           = (int32_t)ov[OV_OUT_N];
-        if (ov[OV_MAX_RESCUE] != MB_SHIM_OVR_KEEP) opt->max_rescue      = (int32_t)ov[OV_MAX_RESCUE];
-        if (ov[OV_XA_MAX]     != MB_SHIM_OVR_KEEP) opt->xa_max          = (int32_t)ov[OV_XA_MAX];
+    if (ov && n_ov > 0) {
+        if (SHIM_OVR_HAS(OV_A))          opt->a               = (int32_t)ov[OV_A];
+        if (SHIM_OVR_HAS(OV_B))          opt->b               = (int32_t)ov[OV_B];
+        if (SHIM_OVR_HAS(OV_MIN_LEN))    opt->min_len         = (int32_t)ov[OV_MIN_LEN];
+        if (SHIM_OVR_HAS(OV_MAX_OCC))    opt->max_occ         = (int32_t)ov[OV_MAX_OCC];
+        if (SHIM_OVR_HAS(OV_MIN_CHAIN))  opt->min_chain_score = (int32_t)ov[OV_MIN_CHAIN];
+        if (SHIM_OVR_HAS(OV_BEST_N))     opt->best_n          = (int32_t)ov[OV_BEST_N];
+        if (SHIM_OVR_HAS(OV_PEN_UNPAIR)) opt->pen_unpair      = (int32_t)ov[OV_PEN_UNPAIR];
+        if (SHIM_OVR_HAS(OV_MAX_SR_LEN)) opt->max_sr_len      = (int32_t)ov[OV_MAX_SR_LEN];
+        if (SHIM_OVR_HAS(OV_MAX_GAP))    opt->max_gap         = (int32_t)ov[OV_MAX_GAP];
+        if (SHIM_OVR_HAS(OV_BW))         opt->bw              = (int32_t)ov[OV_BW];
+        if (SHIM_OVR_HAS(OV_BW_LONG))    opt->bw_long         = (int32_t)ov[OV_BW_LONG];
+        if (SHIM_OVR_HAS(OV_MIN_DP_MAX)) opt->min_dp_max      = (int32_t)ov[OV_MIN_DP_MAX];
+        if (SHIM_OVR_HAS(OV_OUT_N))      opt->out_n           = (int32_t)ov[OV_OUT_N];
+        if (SHIM_OVR_HAS(OV_MAX_RESCUE)) opt->max_rescue      = (int32_t)ov[OV_MAX_RESCUE];
+        if (SHIM_OVR_HAS(OV_XA_MAX))     opt->xa_max          = (int32_t)ov[OV_XA_MAX];
+        /* -I: mirrors main_map's set_ins_size, which assigns all four AND sets MB_F_PE_PREDEF.
+         * The flag comes from the caller's `fset` (it is a flag, not a scalar), so the four values
+         * are applied here and the flag is applied below — same split main_map uses. */
+        if (SHIM_OVR_HAS(OV_PE_AVG))     opt->pe_avg          = (int32_t)ov[OV_PE_AVG];
+        if (SHIM_OVR_HAS(OV_PE_STD))     opt->pe_std          = (int32_t)ov[OV_PE_STD];
+        if (SHIM_OVR_HAS(OV_PE_LO))      opt->pe_lo           = (int32_t)ov[OV_PE_LO];
+        if (SHIM_OVR_HAS(OV_PE_HI))      opt->pe_hi           = (int32_t)ov[OV_PE_HI];
     }
     if (has_pri) opt->pri_ratio = pri;
+    /* --outs / --xa-ratio. A second float channel rather than an OV_* slot: `ov` is int64 and
+     * round-tripping a float through it would not be bit-exact, which is the whole point of the
+     * oracle. Guarded by its own flag for the same reason `pri` is — 0.0 is a legal value. */
+    if (has_out_s) opt->out_s = out_s;
     opt->flag |= fset;
     opt->flag &= ~fclr;
 }
@@ -1168,11 +1200,12 @@ static void shim_apply_ovr(mb_opt_t *opt, const char *preset, const int64_t *ov,
  * then mb_opt_adap for qlen, and export the same oi/of/ol arrays. `n_ov` guards a short/absent
  * override array (must be >= OV_N to be applied). */
 void mb_shim_align_opt_ovr(int qlen, const char *preset, const int64_t *ov, int n_ov,
-                           int has_pri, float pri, uint64_t fset, uint64_t fclr,
+                           int has_pri, float pri, int has_out_s, float out_s,
+                           uint64_t fset, uint64_t fclr,
                            int32_t *oi, float *of, int64_t *ol) {
     mb_opt_t opt0, opt;
     mb_opt_init(&opt0);
-    shim_apply_ovr(&opt0, preset, (ov && n_ov >= OV_N) ? ov : NULL, has_pri, pri, fset, fclr);
+    shim_apply_ovr(&opt0, preset, ov, n_ov, has_pri, pri, has_out_s, out_s, fset, fclr);
     mb_opt_adap(&opt0, qlen, &opt);
     oi[0] = opt.a;  oi[1] = opt.b;  oi[2] = opt.b_ts;  oi[3] = opt.b_ambi;
     oi[4] = opt.q;  oi[5] = opt.e;  oi[6] = opt.q2;    oi[7] = opt.e2;
@@ -1187,8 +1220,27 @@ void mb_shim_align_opt_ovr(int qlen, const char *preset, const int64_t *ov, int 
     ol[0] = opt.max_sw_mat; ol[1] = (int64_t)opt.flag;
 }
 
+/* Read back the insert-size model and --outs an override set produces, WITHOUT touching
+ * mb_shim_align_opt_ovr's oi/of arrays.
+ *
+ * A separate entry point, deliberately: oi/of carry no length parameter, so appending indices to
+ * them would silently overflow a caller built against the older header rather than fail to compile.
+ * Growing the OUTPUT surface means a new function; growing the INPUT surface means appending an
+ * OV_* slot, which `n_ov` makes safe. See the note above mb_shim_align_opt_ovr.
+ *
+ * `pe` receives {pe_avg, pe_std, pe_lo, pe_hi}; `out_s` receives opt.out_s. Either may be NULL. */
+void mb_shim_ins_size_ovr(const char *preset, const int64_t *ov, int n_ov,
+                          int has_out_s, float out_s_in, uint64_t fset, uint64_t fclr,
+                          int32_t *pe, float *out_s) {
+    mb_opt_t opt;
+    mb_opt_init(&opt);
+    shim_apply_ovr(&opt, preset, ov, n_ov, 0, 0.0f, has_out_s, out_s_in, fset, fclr);
+    if (pe) { pe[0] = opt.pe_avg; pe[1] = opt.pe_std; pe[2] = opt.pe_lo; pe[3] = opt.pe_hi; }
+    if (out_s) *out_s = opt.out_s;
+}
+
 void mb_shim_align_opt(int qlen, int32_t *oi, float *of, int64_t *ol) {
-    mb_shim_align_opt_ovr(qlen, NULL, NULL, 0, 0, 0.0f, 0, 0, oi, of, ol);
+    mb_shim_align_opt_ovr(qlen, NULL, NULL, 0, 0, 0.0f, 0, 0.0f, 0, 0, oi, of, ol);
 }
 
 /* Reference-sequence extraction oracle: C l2b_getseq over the loaded index's l2bit store. Writes

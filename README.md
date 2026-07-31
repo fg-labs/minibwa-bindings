@@ -56,4 +56,9 @@ the effective license to GPL.
 
 ## Updating the vendored source
 
-`scripts/refresh-minibwa.sh <clean-commit> [local-source-path]`
+`scripts/refresh-minibwa.sh <commit> [--patch <sha>]... [--src <path>]`
+
+The pin is recorded as an upstream base commit in `minibwa-sys/vendor/COMMIT`
+plus any fork patches carried on top in `minibwa-sys/vendor/PATCHES`. A nightly
+workflow watches upstream for new releases and opens a draft refresh PR, so this
+is usually only run by hand when the automated cherry-pick needs help.

@@ -10,8 +10,17 @@
 - Conventional Commits; feature branches only; never commit to `main`/`dev`.
 
 ## Updating vendored minibwa
-- `scripts/refresh-minibwa.sh <clean-commit> [local-source-path]`, then run the
-  full test suite — the bindgen layout tests catch struct drift.
+- `scripts/refresh-minibwa.sh <commit> [--patch <sha>]... [--src <path>]`, then
+  run the full test suite — the bindgen layout tests catch struct drift.
+- The pin is `minibwa-sys/vendor/COMMIT` (upstream base) plus
+  `minibwa-sys/vendor/PATCHES` (fork commits cherry-picked on top, in apply
+  order). Recording base + patches rather than a rebased SHA keeps the pin
+  reproducible by anyone.
+- The nightly `Watch Upstream minibwa` workflow does this automatically when
+  upstream cuts a release: it replays the carried patches onto the new tag and
+  opens a draft PR, or — if they conflict — files an issue asking for a manual
+  rebase. Run it on demand from the Actions tab; tick `dry-run` to see the issue
+  and PR it would produce without writing anything.
 
 ## Features
 - `minibwa-sys/gpl-bwtgen`: vendors GPL `bwtgen`/`QSufSort`. **Changes the

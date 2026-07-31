@@ -1,0 +1,101 @@
+name: minibwa upstream watch
+description: >-
+  Compare the vendored minibwa snapshot against upstream's newest release and,
+  when it is behind, open or refresh a tracking issue and a draft vendor-refresh
+  pull request.
+
+inputs:
+  token:
+    description: Token with issues/pull-requests/contents write on this repository.
+    required: true
+  repo:
+    description: owner/name of this repository.
+    required: true
+  upstream-repo:
+    description: Canonical upstream repository to watch for releases.
+    required: false
+    default: lh3/minibwa
+  fork-repo:
+    description: Fork carrying patches not yet merged upstream.
+    required: false
+    default: nh13/minibwa
+  label:
+    description: Label identifying the tracking issue.
+    required: false
+    default: upstream-minibwa
+  pr-label:
+    description: Label applied to the refresh pull request. Created if absent.
+    required: false
+    default: dependencies
+  branch:
+    description: Long-lived branch holding the automated vendor refresh.
+    required: false
+    default: chore/update-vendored-minibwa
+  bot-name:
+    description: git author name for the refresh commit.
+    required: false
+    default: github-actions[bot]
+  bot-email:
+    description: >-
+      git author email for the refresh commit. Also used to decide whether the
+      refresh branch may be force-pushed: a branch carrying commits by anyone
+      else is left alone.
+    required: false
+    default: github-actions[bot]@users.noreply.github.com
+  dry-run:
+    description: Render the issue and pull request without writing anything.
+    required: false
+    default: "false"
+
+outputs:
+  behind:
+    description: "true when the vendored snapshot is behind upstream's newest release."
+    value: ${{ steps.watch.outputs.behind }}
+  current-release:
+    description: Release tag the vendored snapshot corresponds to.
+    value: ${{ steps.watch.outputs.current-release }}
+  latest-release:
+    description: Upstream's newest release tag.
+    value: ${{ steps.watch.outputs.latest-release }}
+  cherry-pick-status:
+    description: "none, clean, or conflict — how the carried fork patches replayed."
+    value: ${{ steps.watch.outputs.cherry-pick-status }}
+  issue-number:
+    description: Tracking issue number, when one was created or updated.
+    value: ${{ steps.watch.outputs.issue-number }}
+  pr-number:
+    description: Refresh pull request number, when one was created or updated.
+    value: ${{ steps.watch.outputs.pr-number }}
+
+runs:
+  using: composite
+  steps:
+    - name: Configure git identity
+      shell: bash
+      run: |
+        git config user.name "${{ inputs.bot-name }}"
+        git config user.email "${{ inputs.bot-email }}"
+
+    - name: Watch upstream releases
+      id: watch
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+      run: |
+        set -euo pipefail
+        args=(
+          --repo "${{ inputs.repo }}"
+          --upstream-repo "${{ inputs.upstream-repo }}"
+          --fork-repo "${{ inputs.fork-repo }}"
+          --label "${{ inputs.label }}"
+          --pr-label "${{ inputs.pr-label }}"
+          --branch "${{ inputs.branch }}"
+          --bot-email "${{ inputs.bot-email }}"
+          --repo-root "$GITHUB_WORKSPACE"
+          --output "$GITHUB_OUTPUT"
+        )
+        if [[ "${{ inputs.dry-run }}" == "true" ]]; then
+          args+=(--dry-run)
+        fi
+        python3 "${{ github.action_path }}/watch.py" "${args[@]}" \
+          | tee -a "$GITHUB_STEP_SUMMARY"

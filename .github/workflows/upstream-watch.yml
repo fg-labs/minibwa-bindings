@@ -1,0 +1,74 @@
+name: Watch Upstream minibwa
+
+# Nightly check that the vendored minibwa C snapshot is not behind upstream's
+# newest release. When it is, this opens (or refreshes) a tracking issue and a
+# draft vendor-refresh PR. See .github/actions/minibwa-upstream-watch.
+#
+# Required org secrets (shared with publish.yml):
+#   FG_LABS_BOT_APP_ID      — GitHub App ID for the fg-labs bot
+#   FG_LABS_BOT_PRIVATE_KEY — GitHub App private key (PEM)
+#
+# NOTE: GitHub disables scheduled workflows after 60 days without repository
+# activity. If the watch goes quiet on a dormant repository, re-enable it from
+# the Actions tab.
+
+on:
+  schedule:
+    # 06:17 UTC nightly; off the hour to avoid GitHub's on-the-hour scheduling backlog.
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+    inputs:
+      dry-run:
+        description: Render the issue and PR without writing anything.
+        type: boolean
+        required: false
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: upstream-watch
+  cancel-in-progress: false
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate app token
+        id: app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          app-id: ${{ secrets.FG_LABS_BOT_APP_ID }}
+          private-key: ${{ secrets.FG_LABS_BOT_PRIVATE_KEY }}
+          # Without these the token inherits every permission the App
+          # installation holds; the watch needs exactly these three.
+          permission-contents: write
+          permission-issues: write
+          permission-pull-requests: write
+
+      - name: Resolve bot identity
+        id: bot
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          APP_SLUG: ${{ steps.app-token.outputs.app-slug }}
+        run: |
+          set -euo pipefail
+          USER_ID=$(gh api "/users/${APP_SLUG}%5Bbot%5D" --jq .id)
+          echo "name=${APP_SLUG}[bot]" >> "$GITHUB_OUTPUT"
+          echo "email=${USER_ID}+${APP_SLUG}[bot]@users.noreply.github.com" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
+        with:
+          fetch-depth: 0
+          token: ${{ steps.app-token.outputs.token }}
+
+      - name: Check upstream for a newer release
+        id: watch
+        uses: ./.github/actions/minibwa-upstream-watch
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+          repo: ${{ github.repository }}
+          bot-name: ${{ steps.bot.outputs.name }}
+          bot-email: ${{ steps.bot.outputs.email }}
+          dry-run: ${{ inputs.dry-run == true }}

@@ -48,6 +48,16 @@ jobs:
           components: rustfmt
       - run: cargo ci-fmt
 
+  upstream-watch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
+        with:
+          persist-credentials: false
+      - name: Test the upstream-watch action
+        working-directory: .github/actions/minibwa-upstream-watch
+        run: python3 -m unittest discover --verbose
+
   lint:
     runs-on: ubuntu-latest
     steps:

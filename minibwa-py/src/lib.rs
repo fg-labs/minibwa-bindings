@@ -169,13 +169,16 @@ impl PyOpts {
         self.inner = self.inner.clone().set_xa_max(v);
     }
 
-    /// Set the score-ratio threshold for ``XA``-tag inclusion.
+    /// Set the score-ratio threshold for reporting a suboptimal hit.
     ///
-    /// A suboptimal hit is emitted to the ``XA`` tag only if its score is at
-    /// least ``ratio * best_score``. minibwa's default is ``0.8``. ``ratio`` is
-    /// a fraction of the best hit's score, so only values in ``[0.0, 1.0]`` are
+    /// A suboptimal hit is reported only if its score is at least
+    /// ``ratio * best_score``. minibwa's default is ``0.8``. ``ratio`` is a
+    /// fraction of the best hit's score, so only values in ``[0.0, 1.0]`` are
     /// meaningful; non-finite values (``NaN``/``inf``) silently suppress all
-    /// ``XA`` hits. The value is passed through to minibwa unchecked.
+    /// such hits. The value is passed through to minibwa unchecked.
+    ///
+    /// Since minibwa 0.5-r412 this gates both ``XA``-tag inclusion and
+    /// secondary-alignment output; before r412 it affected only ``XA``.
     ///
     /// Args:
     ///     ratio: Score-ratio threshold in ``[0.0, 1.0]``.

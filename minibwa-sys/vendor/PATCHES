@@ -1,0 +1,6 @@
+# Fork commits cherry-picked onto the upstream base recorded in COMMIT,
+# in apply order. Reproduce the vendored tree with:
+#
+#   scripts/refresh-minibwa.sh ebc59eaff045898c6a9daed4689302547d1326cb --patch 7f99202ad70151f3f4c1dea2b70742e6131b44c9
+#
+7f99202ad70151f3f4c1dea2b70742e6131b44c9  add AVX2/AVX-512 to ksw_extd2 with runtime dispatch

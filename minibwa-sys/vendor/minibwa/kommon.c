@@ -1,3 +1,5 @@
+#define _DEFAULT_SOURCE // expose MADV_RANDOM etc. under -std=c99 (glibc >= 2.19)
+#define _BSD_SOURCE     // ditto on older glibc (e.g. CentOS 7 / glibc 2.17)
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
@@ -332,4 +334,41 @@ double kom_realtime(void)
 double kom_percent_cpu(void)
 {
 	return (kom_cputime() + 1e-6) / (kom_realtime() + 1e-6);
+}
+
+/***************
+ * mmap loader *
+ ***************/
+
+#include <fcntl.h>
+#include <unistd.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
+
+void *kom_mmap_file(const char *fn, size_t *len, int preload)
+{
+	int fd, mmap_flags = MAP_SHARED;
+	struct stat st;
+	uint8_t *base;
+
+	*len = 0;
+	fd = open(fn, O_RDONLY);
+	if (fd < 0) return 0;
+	if (fstat(fd, &st) < 0 || st.st_size == 0) { close(fd); return 0; }
+	*len = st.st_size;
+#ifdef MAP_POPULATE // this is Linux only
+	if (preload) mmap_flags |= MAP_POPULATE;
+#endif
+	base = (uint8_t*)mmap(0, *len, PROT_READ, mmap_flags, fd, 0);
+	close(fd);
+	if (base == MAP_FAILED) return 0;
+#ifdef MADV_RANDOM
+	madvise(base, *len, MADV_RANDOM);
+#endif
+	return base;
+}
+
+int kom_munmap(void *base, size_t map_len) // a simple wrapper
+{
+	return munmap(base, map_len);
 }

@@ -34,7 +34,9 @@ mb_bwt_t *mb_bwt_init(void)
 void mb_bwt_destroy(mb_bwt_t *bwt)
 {
 	if (bwt == 0) return;
-	free(bwt->pre); free(bwt->sa); free(bwt->data);
+	free(bwt->pre); // pre is always heap-allocated (by mb_bwt_cache)
+	if (bwt->mmap) kom_munmap(bwt->mmap, bwt->mmap_len); // data/sa point into the mapped file
+	else { free(bwt->sa); free(bwt->data); }
 	free(bwt);
 }
 
@@ -671,5 +673,43 @@ mb_bwt_t *mb_bwt_load(const char *fn)
 		fread(bwt->sa, 8, bwt->n_sa, fp);
 	}
 	fclose(fp);
+	return bwt;
+}
+
+mb_bwt_t *mb_bwt_load_mmap(const char *fn, int preload)
+{
+	uint8_t *base;
+	size_t map_len;
+	uint64_t data_off, sa_off, n_sa_off, min_len;
+	mb_bwt_t *bwt;
+
+	base = (uint8_t*)kom_mmap_file(fn, &map_len, preload);
+	if (base == 0) return 0;
+	if (map_len < 48 || strncmp((const char*)base, MB_MAGIC, 4) != 0) { kom_munmap(base, map_len); return 0; }
+
+	bwt = mb_bwt_init();
+	bwt->mmap = base;
+	bwt->mmap_len = map_len;
+	bwt->sa_bit = *(const uint32_t*)(base + 4);
+	bwt->primary = *(const uint64_t*)(base + 8);
+	memcpy(&bwt->L2[1], base + 16, 32);
+	bwt->seq_len = bwt->L2[4];
+	bwt->data_len = mb_bwt_data_len(bwt->seq_len);
+
+	data_off = 48;
+	n_sa_off = data_off + bwt->data_len * 8;
+	sa_off = n_sa_off + 8;
+	min_len = sa_off; // file must at least hold up to n_sa
+	if (map_len < min_len) { mb_bwt_destroy(bwt); return 0; }
+	bwt->data = (uint64_t*)(base + data_off);
+	bwt->n_sa = *(const uint64_t*)(base + n_sa_off);
+	if (bwt->sa_bit != (uint32_t)-1 && bwt->n_sa > 0) {
+		uint64_t expected_n_sa = (bwt->seq_len + (1ULL << bwt->sa_bit)) >> bwt->sa_bit;
+		if (bwt->n_sa != expected_n_sa || map_len < sa_off + bwt->n_sa * 8) {
+			mb_bwt_destroy(bwt);
+			return 0;
+		}
+		bwt->sa = (uint64_t*)(base + sa_off);
+	}
 	return bwt;
 }

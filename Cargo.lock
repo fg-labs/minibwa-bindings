@@ -136,7 +136,7 @@ checksum = "cf8baf1c55e62ffcace7a9f06f4bd9cd3f0c4beb022d3b367256b91b87513d98"
 
 [[package]]
 name = "minibwa"
-version = "0.1.7"
+version = "0.2.0"
 dependencies = [
  "libc",
  "minibwa",
@@ -146,7 +146,7 @@ dependencies = [
 
 [[package]]
 name = "minibwa-py"
-version = "0.1.7"
+version = "0.2.0"
 dependencies = [
  "minibwa",
  "pyo3",
@@ -154,7 +154,7 @@ dependencies = [
 
 [[package]]
 name = "minibwa-sys"
-version = "0.1.7"
+version = "0.2.0"
 dependencies = [
  "bindgen",
  "cc",

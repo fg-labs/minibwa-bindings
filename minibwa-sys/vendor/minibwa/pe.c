@@ -461,7 +461,7 @@ static int32_t mb_matesw(void *km, const mb_opt_t *opt, const l2b_t *l2b, int32_
 void mb_pair(void *km, const mb_opt_t *opt, const l2b_t *l2b, int32_t n_hit[2], mb_hit_t *hit[2], const mb_pestat_t pes[4], int32_t qlen[2], char *const qseq[2])
 {
 	const int32_t pe_bonus = 4;
-	int32_t r, i, dp_max_se[2], score_se, dp_max_se2[2], score_se2, do_matesw, is_meth = !!(opt->flag & MB_F_METH);
+	int32_t r, i, dp_max_se[2], score_se, dp_max_se2[2], score_se2, do_matesw, is_meth = !!(opt->flag & MB_F_METH), reset_sam_pri = 1;
 	mb_pairaux_t paux;
 	int32_t seed_ratio[2], min_seed_ratio;
 
@@ -487,7 +487,7 @@ void mb_pair(void *km, const mb_opt_t *opt, const l2b_t *l2b, int32_t n_hit[2], 
 			mb_pair_hits(km, opt, l2b, n_hit, hit, pes, &paux); // pair again if new hits rescued
 		}
 	}
-	if (paux.n_pp == 0) goto end_pairing;
+	if (paux.n_pp == 0) goto end_pairing; // skip the rest if there are no properly paired hits
 
 	for (r = 0; r < 2; ++r) {
 		for (dp_max_se[r] = dp_max_se2[r] = 0, i = 0; i < n_hit[r]; ++i) {
@@ -502,6 +502,9 @@ void mb_pair(void *km, const mb_opt_t *opt, const l2b_t *l2b, int32_t n_hit[2], 
 
 	mb_sync_high_cov(n_hit[0], hit[0]);
 	mb_sync_high_cov(n_hit[1], hit[1]);
+	for (r = 0; r < 2; ++r) // clear 0x2 as these will be re-evaluated and set in the following
+		for (i = 0; i < n_hit[r]; ++i)
+			hit[r][i].proper_pair = 0;
 	if (paux.score >= score_se - opt->pen_unpair * opt->a) { // choose the paired hits
 		int32_t mapq_pe, score2 = paux.sub_sc, diff;
 		double identity;
@@ -534,7 +537,8 @@ void mb_pair(void *km, const mb_opt_t *opt, const l2b_t *l2b, int32_t n_hit[2], 
 				p->mapq = 0;
 			}
 			for (i = 0; i < n_hit[r]; ++i) { // handle other chimeric hits
-				mb_hit_t *p = &hit[r][i], *q = h[r];
+				const mb_hit_t *q = h[r];
+				mb_hit_t *p = &hit[r][i];
 				if (q != p && p->id == p->parent) { // p is a chimeric hit that is not h[r]
 					int32_t j, ol = p->qe <= q->qs || p->qs >= q->qe? 0 : (p->qe < q->qe? p->qe : q->qe) - (p->qs > q->qs? p->qs : q->qs);
 					if (ol > opt->mask_level * (p->qe - p->qs)) { // if p overlaps with h[r] a lot, make it a secondary hit
@@ -545,7 +549,24 @@ void mb_pair(void *km, const mb_opt_t *opt, const l2b_t *l2b, int32_t n_hit[2], 
 					}
 				}
 			}
+			for (i = 0; i < n_hit[r]; ++i) {
+				mb_hit_t *p = &hit[r][i];
+				p->sam_pri = p->proper_pair = 0;
+				if (p->id == p->parent)
+					p->proper_pair = 1;
+			}
+			h[r]->sam_pri = 1;
 		}
+		if (opt->flag & MB_F_PRIMARY5) {
+			int32_t pri[2];
+			pri[0] = mb_set_sam_pri(n_hit[0], hit[0], 1);
+			pri[1] = mb_set_sam_pri(n_hit[1], hit[1], 1);
+			if (&hit[0][pri[0]] != h[0] || &hit[1][pri[1]] != h[1]) // if sam_pri is changed, clear flag 0x2
+				for (r = 0; r < 2; ++r)
+					for (i = 0; i < n_hit[r]; ++i)
+						hit[r][i].proper_pair = 0;
+		}
+		reset_sam_pri = 0;
 	} else { // choose the unpaired hits
 		int32_t diff = score_se - opt->pen_unpair * opt->a - paux.score;
 		int32_t mapq_pe = 6 * diff / opt->a;
@@ -554,6 +575,8 @@ void mb_pair(void *km, const mb_opt_t *opt, const l2b_t *l2b, int32_t n_hit[2], 
 				hit[r][i].mapq = hit[r][i].mapq < mapq_pe? hit[r][i].mapq : mapq_pe;
 	}
 end_pairing:
-	mb_set_sam_pri(n_hit[0], hit[0], !!(opt->flag & MB_F_PRIMARY5));
-	mb_set_sam_pri(n_hit[1], hit[1], !!(opt->flag & MB_F_PRIMARY5));
+	if (reset_sam_pri) {
+		mb_set_sam_pri(n_hit[0], hit[0], !!(opt->flag & MB_F_PRIMARY5));
+		mb_set_sam_pri(n_hit[1], hit[1], !!(opt->flag & MB_F_PRIMARY5));
+	}
 }

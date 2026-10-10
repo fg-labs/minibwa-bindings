@@ -1,3 +1,20 @@
+Release 0.7-r421 (6 August, 2026)
+---------------------------------
+
+Notable changes:
+
+ * Bugfix: misassgined "properly paired" SAM flag (#60). After this fix, flag
+   0x2 is only applied if the primary hits land on the same chromosome. The
+   flag for a supplementary hit follows the primary hit for consistency with
+   bwa-mem.
+
+ * Bugfix: unrecognized command-line options may be reported at wrong
+   positions.
+
+(0.7: 6 August 2027, r421)
+
+
+
 Release 0.6-r416 (30 JUly, 2026)
 --------------------------------
 

@@ -254,8 +254,13 @@ void mb_fmt_sam(void *km, kstring_t *s, const l2b_t *l2b, const mb_bseq1_t *t, i
 			kom_sprintf_lite(s, "%d\t", r_next->ts + 1);
 		} else if (r_next) { // && this_tid < 0
 			kom_sprintf_lite(s, "\t%s\t%d\t", l2b->ctg[r_next->tid].name, r_next->ts + 1);
-		} else if (this_tid >= 0) { // && r_next == NULL
-			kom_sprintf_lite(s, "\t=\t%d\t", this_pos + 1); // next segment will take r's coordinate
+		} else if (this_tid >= 0) { // && r_next == NULL. In this case, mate is unmapped and placed at this segment's primary alignment
+			const mb_hit_t *r_pri;
+			r_pri = get_sam_pri(n_h, h);
+			if (r->tid == r_pri->tid)
+				kom_sprintf_lite(s, "\t=\t%d\t", r_pri->ts + 1);
+			else
+				kom_sprintf_lite(s, "\t%s\t%d\t", l2b->ctg[r_pri->tid].name, r_pri->ts + 1);
 		} else kom_sprintf_lite(s, "\t*\t0\t"); // neither has coordinates
 		if (tlen > 0) ++tlen;
 		else if (tlen < 0) --tlen;

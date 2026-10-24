@@ -177,7 +177,7 @@ static void *worker_pipeline(void *shared, int step, void *in)
     } else if (step == 1) { // step 1: map
 		step_t *s = (step_t*)in;
 		kt_for(opt->n_thread, worker_for_se_batch, in, s->n_sb);
-		if ((opt->flag & MB_F_PE) && s->n_frag < s->n_seq && !(opt->flag & MB_F_NO_PAIRING)) { // PE mode
+		if ((opt->flag & MB_F_PE) && s->n_frag < s->n_seq && !(opt->flag & (MB_F_NO_PAIRING|MB_F_NO_ALN))) { // PE mode
 			if ((opt->flag & MB_F_PE_PREDEF) || s->n_pe < 20) { // use predefined PE stats
 				s->pes[1].failed = 0;
 				s->pes[1].avg = opt->pe_avg, s->pes[1].std = opt->pe_std;
@@ -378,7 +378,7 @@ static int usage_map(FILE *fp, const mb_opt_t *opt)
     fprintf(fp, "    -m INT           min chaining score [%d]\n", opt->min_chain_score);
 	fprintf(fp, "    -p FLOAT         min secondary-to-primary score ratio [%g]\n", opt->pri_ratio);
 	fprintf(fp, "    -N INT           retain at most INT secondary alignments [%d]\n", opt->best_n);
-	fprintf(fp, "    --chain-only     perform chaining only without base alignment\n");
+	fprintf(fp, "    --chain-only     perform chaining only without base alignment; force -fP\n");
 	fprintf(fp, "    -x STR           preset (sr, lr or adap for mixed short/long reads) [adap]\n");
 	fprintf(fp, "  Alignment:\n");
 	fprintf(fp, "    -A INT           matching score [%d]\n", opt->a);
@@ -453,7 +453,7 @@ int main_map(int argc, char *argv[])
 			fprintf(stderr, "[ERROR] missing option argument\n");
 			return 1;
 		} else if (c == '?') {
-			fprintf(stderr, "[ERROR] unknown option in \"%s\"\n", argv[o.i - 1]);
+			fprintf(stderr, "[ERROR] unknown option in \"%s\"\n", argv[o.erri]);
 			return 1;
 		}
 	}
@@ -551,6 +551,7 @@ int main_map(int argc, char *argv[])
 			return usage_map(stdout, &mo);
 		}
 	}
+	if (mo.flag & MB_F_NO_ALN) mo.flag |= MB_F_NO_PAIRING | MB_F_PAF;
 	if (argc - o.ind < 2)
 		return usage_map(stderr, &mo);
 

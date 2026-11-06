@@ -363,10 +363,10 @@ add_primary:
 	kfree(km, w);
 }
 
-void mb_set_sam_pri(int32_t n, mb_hit_t *r, int32_t is_primary5)
+int32_t mb_set_sam_pri(int32_t n, mb_hit_t *r, int32_t is_primary5)
 {
-	int32_t i, n_pri = 0, min_i = -1, min_qs = -1, first_i = -1;
-	if (n <= 0) return;
+	int32_t i, new_pri, n_pri = 0, min_i = -1, min_qs = -1, first_i = -1;
+	if (n <= 0) return -1;
 	for (i = 0; i < n; ++i) {
 		r[i].sam_pri = 0;
 		if (r[i].id != r[i].parent) continue;
@@ -375,8 +375,9 @@ void mb_set_sam_pri(int32_t n, mb_hit_t *r, int32_t is_primary5)
 			min_i = i, min_qs = r[i].qs;
 	}
 	assert(n_pri > 0);
-	if (is_primary5) r[min_i].sam_pri = 1;
-	else r[first_i].sam_pri = 1;
+	new_pri = is_primary5? min_i : first_i;
+	r[new_pri].sam_pri = 1;
+	return new_pri;
 }
 
 void mb_select_sub(void *km, float pri_ratio, int min_diff, int best_n, int *n_, mb_hit_t *r)
@@ -751,7 +752,7 @@ mb_hit_t **mb_map_batch(const mb_opt_t *opt, const mb_idx_t *idx, int32_t n_seq,
 	kfree(km, seq4);
 
 	// paired-end processing
-	if (is_pe && n_seq >= 2) {
+	if (is_pe && n_seq >= 2 && !(opt->flag & (MB_F_NO_PAIRING|MB_F_NO_ALN))) {
 		mb_pestat_t pes[4];
 		for (i = 0; i < 4; ++i) pes[i].failed = 1;
 		pes[1].failed = 0;
